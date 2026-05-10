@@ -1,0 +1,201 @@
+case_uid,status,execution_time_ms,edge_coverage,depth,operators,input_shape,error_message,physical_duration_ms
+fuzz_pt_4e5460fc,Success,1062.39,2365,2,"AvgPool2d,ReLU","[1, 6, 32, 256]",,2931.5575
+fuzz_pt_9b7f981d,Crash,14.35,2004,1,Linear,"[64, 1771]",mat1 and mat2 shapes cannot be multiplied (64x1771 and 937x232),3306.902900000001
+fuzz_pt_f1170952,Crash,8.44,3686,5,"ReLU,ReLU,MaxPool2d,Linear,AvgPool2d","[16, 44, 16, 256]",mat1 and mat2 shapes cannot be multiplied (5632x128 and 970x367),3667.7716
+fuzz_pt_e363ed65,Crash,8.39,5357,6,"ReLU,ReLU,Conv2d,Linear,AvgPool2d,BatchNorm2d","[4, 18, 16, 32]","Given groups=1, weight of size [47, 45, 1, 1], expected input[4, 18, 16, 32] to have 45 channels, but got 18 channels instead",3411.908499999999
+fuzz_pt_2326043a,Crash,1.0,4051,6,"Flatten,BatchNorm2d,ReLU,MaxPool2d,Conv2d,MaxPool2d","[4, 34, 128, 128]",expected 4D input (got 2D input),3389.3646000000003
+fuzz_pt_8534ec88,Crash,2.22,2964,4,"ReLU,Flatten,MaxPool2d,AvgPool2d","[1, 3506]",non-empty 3D or 4D (batch mode) tensor expected for input,3469.3264999999974
+fuzz_pt_056c7216,Success,22.08,1679,1,MaxPool2d,"[16, 63, 256, 128]",,3669.9273999999987
+fuzz_pt_72134c22,Crash,26.0,3393,3,"ReLU,ReLU,Conv2d","[128, 41, 32, 128]","Given groups=1, weight of size [33, 5, 5, 5], expected input[128, 41, 32, 128] to have 5 channels, but got 41 channels instead",6808.734800000004
+fuzz_pt_fde37e61,Crash,1.0,2914,3,"BatchNorm2d,AvgPool2d,ReLU","[256, 2324]",expected 4D input (got 2D input),3434.1963999999975
+fuzz_pt_2dfc097d,Crash,1.51,1906,3,"ReLU,Flatten,BatchNorm2d","[128, 23, 64, 16]",expected 4D input (got 2D input),3500.368200000004
+fuzz_pt_860c6f09,Crash,1.0,1641,2,"ReLU,Linear","[16, 50000]",mat1 and mat2 shapes cannot be multiplied (16x50000 and 972x602),3454.1425999999974
+fuzz_pt_6a424df5,Crash,1.0,1782,1,Linear,"[1, 5, 128, 256]",mat1 and mat2 shapes cannot be multiplied (640x256 and 196x308),3485.033900000005
+fuzz_pt_3facdad4,Crash,1.0,2306,2,"Flatten,Conv2d","[16, 29, 256, 32]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [16, 237568]",15015.822100000001
+fuzz_pt_eb1d92d1,Success,1324.85,1800,1,Flatten,"[256, 2377]",,3158.1148
+fuzz_pt_bb1b3d97,Crash,80.34,2838,4,"Flatten,ReLU,BatchNorm2d,AvgPool2d","[16, 51, 1024, 256]",expected 4D input (got 2D input),3745.2907999999925
+fuzz_pt_d57880a9,Crash,1.0,4848,5,"Linear,MaxPool2d,ReLU,Flatten,Linear","[4, 28, 16, 16]",mat1 and mat2 shapes cannot be multiplied (1792x16 and 867x741),3619.3493000000103
+fuzz_pt_e1e663c8,Crash,1.0,4654,6,"MaxPool2d,Conv2d,BatchNorm2d,BatchNorm2d,MaxPool2d,Conv2d","[1, 27, 128, 16]","Given groups=1, weight of size [27, 5, 3, 3], expected input[1, 27, 42, 5] to have 5 channels, but got 27 channels instead",3598.0761
+fuzz_pt_30a52cb6,Crash,1.08,2296,2,"Conv2d,MaxPool2d","[64, 1727]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [64, 1727]",3549.738000000005
+fuzz_pt_f974f59e,Crash,1.01,4517,5,"AvgPool2d,Conv2d,Linear,AvgPool2d,MaxPool2d","[1, 35, 256, 1024]","Given groups=1, weight of size [23, 51, 1, 1], expected input[1, 35, 85, 341] to have 51 channels, but got 35 channels instead",3792.872299999999
+fuzz_pt_03f1a2a9,Crash,1.0,2809,3,"ReLU,Conv2d,AvgPool2d","[64, 1556]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [64, 1556]",3498.2345000000096
+fuzz_pt_e67ad228,Crash,1.0,2771,2,"Linear,Conv2d","[256, 1589]",mat1 and mat2 shapes cannot be multiplied (256x1589 and 258x917),3617.460399999999
+fuzz_pt_82db1680,Timeout,3316.62,1253,1,Flatten,"[256, 3618]",TimeoutError: Execution exceeded maximum allowed time (2s),3566.860300000002
+fuzz_pt_59433688,Success,1737.24,3542,3,"MaxPool2d,MaxPool2d,MaxPool2d","[16, 9, 32, 1024]",,3520.270300000007
+fuzz_pt_88e9d445,Crash,1.0,1559,1,Linear,"[64, 46, 64, 16]",mat1 and mat2 shapes cannot be multiplied (188416x16 and 174x726),7411.726099999995
+fuzz_pt_47c1b830,Success,523.69,1451,1,Flatten,"[4, 5, 128, 1024]",,3513.793299999989
+fuzz_pt_5a694aed,Crash,1.0,2612,3,"MaxPool2d,ReLU,Linear","[1, 9, 64, 128]",mat1 and mat2 shapes cannot be multiplied (288x64 and 1003x346),3537.326499999992
+fuzz_pt_7a52feb4,Crash,1.0,3603,4,"Conv2d,AvgPool2d,Linear,MaxPool2d","[128, 26, 128, 1024]","Given groups=1, weight of size [29, 63, 1, 1], expected input[128, 26, 128, 1024] to have 63 channels, but got 26 channels instead",8686.629800000006
+fuzz_pt_471032e1,Success,1.52,1671,1,ReLU,"[4, 56, 128, 32]",,3497.6184999999873
+fuzz_pt_f44a2b8a,Success,1.0,1562,1,Flatten,"[64, 39, 16, 16]",,3746.9528000000028
+fuzz_pt_bfd0d637,Crash,1.0,6209,6,"Linear,Linear,ReLU,Conv2d,Flatten,BatchNorm2d","[64, 10, 32, 64]",mat1 and mat2 shapes cannot be multiplied (20480x64 and 117x23),5361.45239999999
+fuzz_pt_322d047a,Crash,1.0,3231,4,"MaxPool2d,Conv2d,AvgPool2d,ReLU","[1, 42, 16, 64]","Given groups=1, weight of size [4, 22, 5, 5], expected input[1, 42, 8, 32] to have 22 channels, but got 42 channels instead",3605.697399999997
+fuzz_pt_b46cc5bd,Crash,3.01,2997,4,"ReLU,ReLU,AvgPool2d,Conv2d","[1, 54, 64, 1024]","Given groups=1, weight of size [49, 56, 5, 5], expected input[1, 54, 21, 341] to have 56 channels, but got 54 channels instead",3542.969599999992
+fuzz_pt_4111fcaf,Crash,1.0,2134,2,"Linear,MaxPool2d","[16, 4, 32, 128]",mat1 and mat2 shapes cannot be multiplied (2048x128 and 385x551),3755.7780000000207
+fuzz_pt_9fec4d58,Crash,1.0,2476,3,"Linear,BatchNorm2d,MaxPool2d","[128, 9, 256, 1024]",mat1 and mat2 shapes cannot be multiplied (294912x1024 and 486x67),6342.10379999999
+fuzz_pt_f24e5e58,Crash,9.67,3036,6,"MaxPool2d,BatchNorm2d,AvgPool2d,MaxPool2d,BatchNorm2d,MaxPool2d","[64, 9, 256, 16]",running_mean should contain 9 elements not 1,3441.570400000018
+fuzz_pt_89f08740,Crash,1.0,4094,5,"Linear,Flatten,BatchNorm2d,AvgPool2d,Flatten","[64, 1150]",mat1 and mat2 shapes cannot be multiplied (64x1150 and 802x496),3405.83860000001
+fuzz_pt_7e1feb51,Crash,1.0,3287,6,"Linear,BatchNorm2d,Linear,BatchNorm2d,AvgPool2d,ReLU","[128, 38, 256, 256]",mat1 and mat2 shapes cannot be multiplied (1245184x256 and 601x441),15015.021799999999
+fuzz_pt_eeaa0298,Success,1.0,2492,3,"AvgPool2d,AvgPool2d,AvgPool2d","[1, 22, 256, 32]",,3294.2268000000186
+fuzz_pt_c60de524,Crash,1.0,1557,1,Conv2d,"[16, 27, 256, 16]","Given groups=1, weight of size [61, 22, 3, 3], expected input[16, 27, 256, 16] to have 22 channels, but got 27 channels instead",3659.601600000002
+fuzz_pt_f820351a,Crash,1.0,4337,5,"Linear,ReLU,BatchNorm2d,Flatten,BatchNorm2d","[4, 25, 64, 32]",mat1 and mat2 shapes cannot be multiplied (6400x32 and 800x375),4074.990200000002
+fuzz_pt_7ab46c6e,Crash,1.0,1260,1,Linear,"[128, 48, 16, 1024]",mat1 and mat2 shapes cannot be multiplied (98304x1024 and 794x542),7202.025500000019
+fuzz_pt_e0bd3f10,Crash,1.0,5098,5,"Flatten,MaxPool2d,Linear,BatchNorm2d,Conv2d","[64, 2764]",non-empty 3D or 4D (batch mode) tensor expected for input,3337.1407000000204
+fuzz_pt_fbf96ebf,Crash,1.0,2735,2,"Conv2d,Flatten","[1, 2340]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 2340]",3354.147600000005
+fuzz_pt_e2c2b918,Crash,1.0,2907,3,"Conv2d,Conv2d,ReLU","[4, 22, 256, 32]","Given groups=1, weight of size [55, 13, 1, 1], expected input[4, 22, 256, 32] to have 13 channels, but got 22 channels instead",3610.689199999996
+fuzz_pt_b112f5e7,Crash,2.58,1956,2,"ReLU,Conv2d","[16, 38, 16, 1024]","Given groups=1, weight of size [14, 45, 1, 1], expected input[16, 38, 16, 1024] to have 45 channels, but got 38 channels instead",4027.462899999989
+fuzz_pt_22887741,Crash,1.55,1534,1,Linear,"[64, 36, 256, 1024]",mat1 and mat2 shapes cannot be multiplied (589824x1024 and 718x926),14754.788600000013
+fuzz_pt_f1fd3e41,Crash,12.04,2644,3,"AvgPool2d,Conv2d,ReLU","[4, 59, 128, 1024]","Given groups=1, weight of size [56, 58, 5, 5], expected input[4, 59, 64, 512] to have 58 channels, but got 59 channels instead",3851.5384000000095
+fuzz_pt_0e36335a,Success,4.86,3807,3,"MaxPool2d,AvgPool2d,Flatten","[128, 53, 16, 64]",,3793.2097999999996
+fuzz_pt_ff02e0af,Crash,1.0,1152,1,BatchNorm2d,"[64, 1386]",expected 4D input (got 2D input),3497.336099999984
+fuzz_pt_73b6be0f,Crash,1.0,4501,3,"Linear,BatchNorm2d,Linear","[128, 12, 32, 1024]",mat1 and mat2 shapes cannot be multiplied (49152x1024 and 321x95),5790.3943999999965
+fuzz_pt_65b9102a,Crash,1.0,1886,3,"AvgPool2d,BatchNorm2d,AvgPool2d","[16, 8, 32, 16]",running_mean should contain 8 elements not 62,3551.2741000000005
+fuzz_pt_63fee346,Crash,1.0,3913,4,"Conv2d,AvgPool2d,MaxPool2d,AvgPool2d","[4, 53, 256, 256]","Given groups=1, weight of size [52, 35, 1, 1], expected input[4, 53, 256, 256] to have 35 channels, but got 53 channels instead",4481.319499999983
+fuzz_pt_46d8a419,Crash,1.0,2475,5,"MaxPool2d,BatchNorm2d,Linear,MaxPool2d,BatchNorm2d","[16, 671]",non-empty 3D or 4D (batch mode) tensor expected for input,3587.5381000000175
+fuzz_pt_2b31c119,Crash,1.0,2093,2,"MaxPool2d,Linear","[4, 59, 16, 16]",mat1 and mat2 shapes cannot be multiplied (1180x5 and 448x226),3727.3079999999936
+fuzz_pt_f2ae06db,Crash,1.0,4096,5,"ReLU,BatchNorm2d,Linear,Linear,Linear","[1, 1135]",expected 4D input (got 2D input),3703.2271999999866
+fuzz_pt_21e14c94,Crash,39.92,3103,6,"AvgPool2d,AvgPool2d,ReLU,Flatten,Flatten,AvgPool2d","[64, 53, 256, 256]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",4546.696399999973
+fuzz_pt_a5e998c8,Crash,1.0,3620,5,"BatchNorm2d,Flatten,Flatten,BatchNorm2d,AvgPool2d","[16, 58, 256, 32]",running_mean should contain 58 elements not 5,3891.2308000000166
+fuzz_pt_5acde2c5,Crash,45.96,2968,5,"AvgPool2d,BatchNorm2d,MaxPool2d,AvgPool2d,Conv2d","[64, 54, 1024, 64]",running_mean should contain 54 elements not 5,4863.4322999999995
+fuzz_pt_6cc7ea69,Success,1.0,1985,1,ReLU,"[1, 9, 128, 128]",,3654.594300000042
+fuzz_pt_da6036c6,Crash,1.0,4529,5,"AvgPool2d,BatchNorm2d,Linear,MaxPool2d,Flatten","[128, 21, 32, 64]",running_mean should contain 21 elements not 37,4741.430300000047
+fuzz_pt_29f647ab,Success,756.73,3535,3,"MaxPool2d,ReLU,AvgPool2d","[16, 62, 64, 1024]",,3931.320900000003
+fuzz_pt_8c16066d,Crash,1.0,2495,2,"Conv2d,Flatten","[1, 2779]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 2779]",3690.666599999986
+fuzz_pt_19522a80,Crash,1.0,5347,6,"Linear,Flatten,Conv2d,MaxPool2d,BatchNorm2d,Conv2d","[128, 43, 256, 128]",mat1 and mat2 shapes cannot be multiplied (1409024x128 and 998x744),15016.150400000015
+fuzz_pt_ddfcdad3,Crash,1.0,3193,4,"Linear,AvgPool2d,Conv2d,Conv2d","[1, 59, 32, 128]",mat1 and mat2 shapes cannot be multiplied (1888x128 and 329x300),4492.001999999957
+fuzz_pt_6af38600,Crash,1.0,5392,4,"Linear,MaxPool2d,Conv2d,ReLU","[16, 2483]",mat1 and mat2 shapes cannot be multiplied (16x2483 and 852x93),3977.5051000000303
+fuzz_pt_6e990b22,Crash,1.0,4439,6,"Flatten,BatchNorm2d,Linear,ReLU,MaxPool2d,ReLU","[1, 149]",expected 4D input (got 2D input),3787.1558999999593
+fuzz_pt_3a56eb31,Crash,1.0,4095,3,"Conv2d,Linear,Conv2d","[64, 54, 32, 128]","Given groups=1, weight of size [29, 21, 5, 5], expected input[64, 54, 32, 128] to have 21 channels, but got 54 channels instead",15016.556699999966
+fuzz_pt_fdeae0e3,Crash,332.97,1162,1,BatchNorm2d,Unallocatable,AllocationError: [enforce fail at alloc_cpu.cpp:117] data. DefaultCPUAllocator: not enough memory: you tried to allocate 18790481920 bytes.,3656.6606000000093
+fuzz_pt_a82fd17d,Crash,1.0,4013,4,"Flatten,Conv2d,MaxPool2d,Linear","[256, 3679]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [256, 3679]",3898.2450000000313
+fuzz_pt_6f7b3c41,Timeout,2811.2,1590,1,ReLU,"[64, 29, 32, 1024]",TimeoutError: Execution exceeded maximum allowed time (2s),4025.9752999999705
+fuzz_pt_85d033b4,Crash,50.92,3280,4,"MaxPool2d,ReLU,BatchNorm2d,BatchNorm2d","[64, 50, 64, 256]",running_mean should contain 50 elements not 5,4617.151299999989
+fuzz_pt_9bdf5892,Crash,1.0,3267,4,"MaxPool2d,MaxPool2d,Conv2d,BatchNorm2d","[1, 11, 16, 64]","Given groups=1, weight of size [37, 25, 5, 5], expected input[1, 11, 2, 10] to have 25 channels, but got 11 channels instead",3394.2215000000147
+fuzz_pt_afd522cb,Crash,1.0,3387,6,"Linear,AvgPool2d,ReLU,Flatten,Flatten,AvgPool2d","[256, 1231]",mat1 and mat2 shapes cannot be multiplied (256x1231 and 879x585),3456.7399000000023
+fuzz_pt_e9b2fa75,Crash,1.0,3876,5,"AvgPool2d,BatchNorm2d,Conv2d,Conv2d,BatchNorm2d","[16, 1499]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3529.014899999993
+fuzz_pt_e0b29ab4,Crash,1.0,3551,6,"Flatten,MaxPool2d,Flatten,Flatten,BatchNorm2d,BatchNorm2d","[64, 4063]",non-empty 3D or 4D (batch mode) tensor expected for input,3616.417200000001
+fuzz_pt_acd6d145,Success,1.0,1389,1,ReLU,"[1, 27, 256, 64]",,3590.9446000000003
+fuzz_pt_14ae8bc1,Crash,1.0,2430,4,"BatchNorm2d,AvgPool2d,MaxPool2d,Flatten","[16, 3022]",expected 4D input (got 2D input),3608.3491999999637
+fuzz_pt_d695d50c,Crash,1.0,6388,6,"Conv2d,Conv2d,AvgPool2d,Flatten,Conv2d,AvgPool2d","[16, 1381]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [16, 1381]",3693.9386999999897
+fuzz_pt_d144c923,Crash,1.0,3957,6,"MaxPool2d,MaxPool2d,ReLU,MaxPool2d,BatchNorm2d,BatchNorm2d","[16, 48, 16, 64]",Given input size: (48x1x7). Calculated output size: (48x0x2). Output size is too small,3712.1046999999976
+fuzz_pt_1158d9d2,Crash,1.0,2068,1,Conv2d,"[16, 34, 32, 1024]","Given groups=1, weight of size [46, 21, 5, 5], expected input[16, 34, 32, 1024] to have 21 channels, but got 34 channels instead",4274.788599999965
+fuzz_pt_21ebd8ea,Success,1.0,1536,1,Flatten,"[16, 3, 64, 128]",,3636.24980000003
+fuzz_pt_bfbcc7c3,Crash,1.0,4649,5,"Linear,AvgPool2d,MaxPool2d,Flatten,MaxPool2d","[64, 63, 16, 256]",mat1 and mat2 shapes cannot be multiplied (64512x256 and 394x128),8864.139599999988
+fuzz_pt_c5a9fb41,Crash,1.0,3682,5,"BatchNorm2d,Conv2d,AvgPool2d,MaxPool2d,BatchNorm2d","[128, 12, 32, 256]",running_mean should contain 12 elements not 29,4107.777999999997
+fuzz_pt_c880e840,Crash,1.0,3314,3,"Conv2d,Linear,Linear","[16, 3517]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [16, 3517]",3592.2568999999953
+fuzz_pt_dc11be98,Crash,1.0,5989,6,"AvgPool2d,AvgPool2d,Conv2d,Linear,MaxPool2d,Flatten","[128, 45, 16, 64]","Given groups=1, weight of size [61, 15, 3, 3], expected input[128, 45, 1, 7] to have 15 channels, but got 45 channels instead",4307.001700000001
+fuzz_pt_0933310e,Crash,1.0,1297,1,BatchNorm2d,"[16, 42, 32, 64]",running_mean should contain 42 elements not 62,3769.7271000000114
+fuzz_pt_bce0f2a3,Crash,1.0,3033,4,"Flatten,Linear,Flatten,AvgPool2d","[1, 26, 128, 256]",mat1 and mat2 shapes cannot be multiplied (1x851968 and 711x83),4343.9482
+fuzz_pt_515349ef,Crash,1.0,4577,4,"Conv2d,Flatten,BatchNorm2d,ReLU","[4, 47, 128, 256]","Given groups=1, weight of size [64, 12, 1, 1], expected input[4, 47, 128, 256] to have 12 channels, but got 47 channels instead",4486.692699999992
+fuzz_pt_681f107d,Crash,6.06,3440,5,"ReLU,ReLU,Flatten,ReLU,AvgPool2d","[16, 16, 1024, 32]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3838.1719000000203
+fuzz_pt_35b40ced,Crash,1.0,9126,6,"ReLU,Conv2d,BatchNorm2d,Conv2d,Linear,Conv2d","[1, 2470]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 2470]",3715.4322000000093
+fuzz_pt_1a5db858,Crash,1.0,941,1,MaxPool2d,"[256, 3331]",non-empty 3D or 4D (batch mode) tensor expected for input,3658.351200000027
+fuzz_pt_90b0e847,Crash,1.0,4680,5,"Conv2d,ReLU,MaxPool2d,ReLU,Linear","[256, 318]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [256, 318]",3437.492500000019
+fuzz_pt_0fd28360,Crash,1.0,4922,4,"Linear,BatchNorm2d,Flatten,Flatten","[16, 25, 256, 32]",mat1 and mat2 shapes cannot be multiplied (102400x32 and 977x237),4864.839700000004
+fuzz_pt_adae4dd8,Crash,1.0,3967,6,"Conv2d,Flatten,BatchNorm2d,Conv2d,BatchNorm2d,Flatten","[1, 42, 128, 256]","Given groups=1, weight of size [56, 29, 5, 5], expected input[1, 42, 128, 256] to have 29 channels, but got 42 channels instead",3741.5304999999535
+fuzz_pt_00cecaa5,Crash,1.0,892,1,BatchNorm2d,"[4, 25, 16, 64]",running_mean should contain 25 elements not 26,3616.1884999999643
+fuzz_pt_b2292390,Crash,1.0,1300,2,"BatchNorm2d,ReLU","[256, 1362]",expected 4D input (got 2D input),3592.4946999999747
+fuzz_pt_7a6be32f,Crash,2.11,3649,4,"MaxPool2d,Flatten,ReLU,Linear","[64, 15, 128, 16]",mat1 and mat2 shapes cannot be multiplied (64x7680 and 682x1002),3970.5756999999835
+fuzz_pt_f3220d4d,Crash,1.0,2538,2,"Linear,BatchNorm2d","[16, 4, 256, 32]",mat1 and mat2 shapes cannot be multiplied (16384x32 and 243x947),3902.22829999999
+fuzz_pt_d7e6d5db,Crash,1.0,3482,5,"BatchNorm2d,Flatten,AvgPool2d,Flatten,Conv2d","[4, 31, 32, 64]",running_mean should contain 31 elements not 4,3656.305800000041
+fuzz_pt_ae40488d,Crash,1.0,2761,4,"MaxPool2d,Flatten,Conv2d,Flatten","[1, 2305]",non-empty 3D or 4D (batch mode) tensor expected for input,3676.122399999997
+fuzz_pt_dffffc4d,Crash,1.0,4046,4,"Conv2d,Flatten,Conv2d,Conv2d","[16, 3543]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [16, 3543]",3585.696799999994
+fuzz_pt_22f85e41,Success,1.0,1979,2,"ReLU,ReLU","[1, 16, 64, 64]",,3667.1076000000085
+fuzz_pt_9ddbe222,Crash,1.0,996,1,MaxPool2d,"[64, 3864]",non-empty 3D or 4D (batch mode) tensor expected for input,3561.015399999974
+fuzz_pt_d668fdec,Crash,1.0,2945,4,"ReLU,ReLU,AvgPool2d,Conv2d","[1, 50000]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3708.3054999999945
+fuzz_pt_8bce83b4,Crash,1.0,3197,6,"ReLU,MaxPool2d,MaxPool2d,Flatten,BatchNorm2d,AvgPool2d","[1, 50, 128, 64]",expected 4D input (got 2D input),3731.0223000000065
+fuzz_pt_85199ac8,Crash,1.0,5208,5,"Flatten,Conv2d,Linear,MaxPool2d,ReLU","[1, 2303]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 2303]",3642.6185999999916
+fuzz_pt_a2dc15b8,Crash,1.0,2042,1,Linear,"[16, 19, 16, 256]",mat1 and mat2 shapes cannot be multiplied (4864x256 and 448x461),4093.6590000000024
+fuzz_pt_64520ca7,Crash,1.0,2694,2,"AvgPool2d,Linear","[64, 7, 256, 32]",mat1 and mat2 shapes cannot be multiplied (57344x16 and 418x485),4009.4397999999956
+fuzz_pt_fae84337,Crash,4.12,3576,3,"AvgPool2d,ReLU,Conv2d","[1, 26, 64, 256]","Given groups=1, weight of size [56, 59, 1, 1], expected input[1, 26, 32, 128] to have 59 channels, but got 26 channels instead",3772.2580999999877
+fuzz_pt_ea5fc72d,Crash,1.0,3977,4,"Flatten,Conv2d,Flatten,ReLU","[1, 9, 1024, 1024]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 9437184]",5855.348800000002
+fuzz_pt_0a56504d,Crash,1.0,6309,5,"ReLU,Linear,AvgPool2d,BatchNorm2d,Linear","[64, 1313]",mat1 and mat2 shapes cannot be multiplied (64x1313 and 942x813),3872.478899999976
+fuzz_pt_267d0c20,Crash,1.0,1988,1,Conv2d,"[128, 4, 128, 16]","Given groups=1, weight of size [31, 58, 1, 1], expected input[128, 4, 128, 16] to have 58 channels, but got 4 channels instead",3536.3671999999724
+fuzz_pt_7e875fe7,Crash,26.6,2959,2,"MaxPool2d,Conv2d","[64, 38, 256, 64]","Given groups=1, weight of size [38, 50, 5, 5], expected input[64, 38, 128, 32] to have 50 channels, but got 38 channels instead",5207.473499999992
+fuzz_pt_f5e0a64b,Crash,1.0,2483,2,"Conv2d,ReLU","[1, 2126]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 2126]",3264.5638999999846
+fuzz_pt_71fad961,Crash,1.51,3092,3,"Conv2d,ReLU,MaxPool2d","[128, 46, 128, 32]","Given groups=1, weight of size [24, 59, 1, 1], expected input[128, 46, 128, 32] to have 59 channels, but got 46 channels instead",7557.311700000014
+fuzz_pt_85ed462e,Crash,1.0,4614,6,"BatchNorm2d,Flatten,AvgPool2d,Linear,Conv2d,MaxPool2d","[16, 53, 256, 64]",running_mean should contain 53 elements not 2,3510.969400000022
+fuzz_pt_b43951e6,Crash,1.0,4210,6,"BatchNorm2d,AvgPool2d,Flatten,BatchNorm2d,Conv2d,Linear","[64, 951]",expected 4D input (got 2D input),3269.1370000000006
+fuzz_pt_84d25ba2,Crash,1.0,6036,4,"ReLU,Linear,Conv2d,AvgPool2d","[4, 9, 128, 1024]",mat1 and mat2 shapes cannot be multiplied (4608x1024 and 61x103),3810.5997000000116
+fuzz_pt_cb9e3e6c,Crash,1.0,2065,2,"AvgPool2d,ReLU","[16, 1507]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3326.4454000000114
+fuzz_pt_aa3475d3,Crash,1.0,2413,3,"AvgPool2d,Linear,AvgPool2d","[16, 1630]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3352.1207000000004
+fuzz_pt_c6b8413b,Crash,1.0,4441,6,"ReLU,BatchNorm2d,ReLU,Conv2d,AvgPool2d,ReLU","[16, 10, 64, 64]",running_mean should contain 10 elements not 49,3459.873899999934
+fuzz_pt_fa114d28,Crash,1.0,1352,2,"AvgPool2d,BatchNorm2d","[128, 1, 32, 32]",running_mean should contain 1 elements not 22,3316.7779000000337
+fuzz_pt_bde45de1,Success,6.54,1959,1,MaxPool2d,"[64, 33, 256, 16]",,3704.427799999962
+fuzz_pt_c014c82b,Crash,1.0,3942,5,"Linear,MaxPool2d,Flatten,Flatten,Linear","[16, 4077]",mat1 and mat2 shapes cannot be multiplied (16x4077 and 748x575),3602.1500000000515
+fuzz_pt_b2bb952a,Crash,1.0,1395,2,"BatchNorm2d,AvgPool2d","[1, 58, 1024, 256]",running_mean should contain 58 elements not 62,3607.615399999986
+fuzz_pt_cbe300e3,Crash,1.0,2851,4,"Conv2d,AvgPool2d,Conv2d,AvgPool2d","[64, 53, 1024, 128]","Given groups=1, weight of size [42, 38, 3, 3], expected input[64, 53, 1024, 128] to have 38 channels, but got 53 channels instead",15015.8596
+fuzz_pt_652fef0b,Crash,1.0,4220,6,"Linear,Flatten,AvgPool2d,ReLU,BatchNorm2d,BatchNorm2d","[128, 9, 1024, 256]",mat1 and mat2 shapes cannot be multiplied (1179648x256 and 861x311),6683.5722000000715
+fuzz_pt_2478233d,Crash,1.03,3765,3,"Linear,MaxPool2d,AvgPool2d","[64, 44, 128, 32]",mat1 and mat2 shapes cannot be multiplied (360448x32 and 408x56),11098.581999999966
+fuzz_pt_a761d8ea,Crash,7.33,2608,3,"MaxPool2d,Flatten,AvgPool2d","[64, 63, 16, 128]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3924.2139000000407
+fuzz_pt_e854e406,Crash,1.0,3900,4,"Conv2d,Flatten,BatchNorm2d,MaxPool2d","[4, 35, 128, 128]","Given groups=1, weight of size [12, 49, 3, 3], expected input[4, 35, 128, 128] to have 49 channels, but got 35 channels instead",3969.1733999999315
+fuzz_pt_c71983f0,Success,24.1,1668,1,ReLU,"[64, 58, 256, 128]",,4483.434500000044
+fuzz_pt_9fa799d1,Crash,1.0,1280,1,BatchNorm2d,"[1, 405]",expected 4D input (got 2D input),3337.258200000065
+fuzz_pt_77e4a150,Crash,2.06,1631,2,"BatchNorm2d,Flatten","[64, 33, 32, 16]",running_mean should contain 33 elements not 55,3456.9031999999424
+fuzz_pt_a06de75c,Crash,1.0,3217,5,"Flatten,AvgPool2d,MaxPool2d,AvgPool2d,Conv2d","[128, 4, 32, 32]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3614.2196000000695
+fuzz_pt_829a936c,Success,1718.42,1383,1,ReLU,"[64, 16, 256, 1024]",,3833.1271000000697
+fuzz_pt_97d1d054,Crash,1.0,1852,2,"Linear,BatchNorm2d","[64, 1840]",mat1 and mat2 shapes cannot be multiplied (64x1840 and 792x149),3599.750399999948
+fuzz_pt_79779cc6,Crash,1.0,2857,2,"Flatten,Conv2d","[128, 28, 32, 64]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [128, 57344]",15016.316700000061
+fuzz_pt_7a4f1155,Crash,1.03,4001,4,"MaxPool2d,ReLU,Linear,Linear","[1, 4, 16, 256]",mat1 and mat2 shapes cannot be multiplied (32x128 and 333x701),3603.6007000000154
+fuzz_pt_615babad,Crash,1.0,2853,5,"Flatten,AvgPool2d,MaxPool2d,AvgPool2d,ReLU","[64, 578]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3664.2025999999532
+fuzz_pt_6c9f00f1,Success,4.83,3493,4,"MaxPool2d,AvgPool2d,AvgPool2d,AvgPool2d","[128, 5, 128, 64]",,3641.212199999927
+fuzz_pt_e0719eef,Crash,1.0,4001,5,"Conv2d,ReLU,ReLU,Flatten,AvgPool2d","[64, 3264]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [64, 3264]",3630.22490000003
+fuzz_pt_d607c697,Crash,1.0,2042,2,"BatchNorm2d,AvgPool2d","[64, 2416]",expected 4D input (got 2D input),3500.3388999999743
+fuzz_pt_b44b595d,Crash,1.0,5745,6,"Flatten,AvgPool2d,Conv2d,BatchNorm2d,AvgPool2d,Linear","[16, 16, 64, 32]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3279.0282999999363
+fuzz_pt_14adb08c,Crash,469.55,3537,3,"MaxPool2d,Conv2d,AvgPool2d",Unallocatable,AllocationError: [enforce fail at alloc_cpu.cpp:117] data. DefaultCPUAllocator: not enough memory: you tried to allocate 12884901888 bytes.,3269.460399999957
+fuzz_pt_6db9a734,Crash,1.0,2197,5,"ReLU,ReLU,Flatten,Flatten,BatchNorm2d","[128, 4, 32, 32]",expected 4D input (got 2D input),3395.586299999991
+fuzz_pt_0d27ef9f,Crash,20963.76,1582,4,"ReLU,ReLU,MaxPool2d,ReLU","[128, 45, 256, 1024]",[enforce fail at alloc_cpu.cpp:117] data. DefaultCPUAllocator: not enough memory: you tried to allocate 6039797760 bytes.,4501.275400000054
+fuzz_pt_46263682,Crash,1.27,3416,5,"Flatten,Flatten,ReLU,Flatten,Linear","[256, 3343]",mat1 and mat2 shapes cannot be multiplied (256x3343 and 30x26),3633.798899999988
+fuzz_pt_458a65ed,Crash,1.0,6071,5,"ReLU,Conv2d,Flatten,AvgPool2d,Linear","[4, 31, 128, 16]","Given groups=1, weight of size [42, 62, 1, 1], expected input[4, 31, 128, 16] to have 62 channels, but got 31 channels instead",3701.5713999999207
+fuzz_pt_b60ade12,Crash,9.5,5477,6,"AvgPool2d,Flatten,MaxPool2d,Linear,Conv2d,Conv2d","[1, 58, 1024, 1024]",non-empty 3D or 4D (batch mode) tensor expected for input,3637.9547999999886
+fuzz_pt_78f8d687,Crash,1.0,1326,1,BatchNorm2d,"[4, 62, 1024, 16]",running_mean should contain 62 elements not 15,3640.1193000000376
+fuzz_pt_2a4daaab,Crash,1.0,2295,3,"ReLU,ReLU,MaxPool2d","[64, 3278]",non-empty 3D or 4D (batch mode) tensor expected for input,3544.497099999944
+fuzz_pt_32cad382,Crash,1.0,1078,1,AvgPool2d,"[256, 1725]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3402.3994000000357
+fuzz_pt_759390c0,Crash,1.0,1308,2,"ReLU,BatchNorm2d","[1, 51, 64, 1024]",running_mean should contain 51 elements not 28,3328.734900000086
+fuzz_pt_7b2f7569,Crash,1.0,2362,5,"MaxPool2d,Flatten,ReLU,ReLU,MaxPool2d","[256, 585]",non-empty 3D or 4D (batch mode) tensor expected for input,3610.649599999988
+fuzz_pt_12c7a905,Crash,4.38,5673,6,"ReLU,Flatten,ReLU,MaxPool2d,AvgPool2d,Conv2d","[16, 62, 128, 64]",non-empty 3D or 4D (batch mode) tensor expected for input,3832.058800000027
+fuzz_pt_72761e5c,Crash,1.0,5891,6,"BatchNorm2d,Linear,BatchNorm2d,Flatten,ReLU,Conv2d","[256, 1953]",expected 4D input (got 2D input),3570.527900000002
+fuzz_pt_fcb26fb5,Crash,43.23,3057,2,"AvgPool2d,Linear","[16, 21, 1024, 1024]",mat1 and mat2 shapes cannot be multiplied (114576x341 and 924x902),4254.565700000057
+fuzz_pt_ffb718ab,Crash,1.0,1961,1,Conv2d,"[16, 2224]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [16, 2224]",3590.284600000018
+fuzz_pt_cd685117,Crash,1.01,2834,2,"Conv2d,MaxPool2d","[4, 64, 256, 16]","Given groups=1, weight of size [27, 57, 1, 1], expected input[4, 64, 256, 16] to have 57 channels, but got 64 channels instead",3831.1588999999913
+fuzz_pt_e75dd672,Crash,1.59,2201,3,"AvgPool2d,Flatten,MaxPool2d","[128, 36, 16, 64]",non-empty 3D or 4D (batch mode) tensor expected for input,3678.9618999999902
+fuzz_pt_88626cf9,Timeout,2994.39,1409,1,ReLU,"[4, 23, 32, 256]",TimeoutError: Execution exceeded maximum allowed time (2s),3633.4868000000142
+fuzz_pt_8dfc2b67,Crash,1.0,4599,5,"Conv2d,Conv2d,BatchNorm2d,AvgPool2d,BatchNorm2d","[16, 57, 16, 128]","Given groups=1, weight of size [14, 52, 1, 1], expected input[16, 57, 16, 128] to have 52 channels, but got 57 channels instead",4965.959600000019
+fuzz_pt_5d718e62,Crash,1.0,886,1,BatchNorm2d,"[1, 223]",expected 4D input (got 2D input),3598.682599999961
+fuzz_pt_a1ab0538,Success,1.0,2554,2,"AvgPool2d,Flatten","[64, 33, 16, 16]",,3615.645400000062
+fuzz_pt_a77b4442,Crash,1.0,4074,5,"AvgPool2d,AvgPool2d,BatchNorm2d,BatchNorm2d,Conv2d","[1, 29, 256, 128]",running_mean should contain 29 elements not 51,3605.3578000000925
+fuzz_pt_5b280c45,Crash,1.0,3253,6,"Flatten,ReLU,BatchNorm2d,BatchNorm2d,Flatten,BatchNorm2d","[256, 1205]",expected 4D input (got 2D input),3582.345999999916
+fuzz_pt_394f12e6,Crash,1.0,2071,2,"MaxPool2d,BatchNorm2d","[4, 36, 16, 64]",running_mean should contain 36 elements not 38,3631.8810000000212
+fuzz_pt_014dec71,Crash,1.0,2190,4,"AvgPool2d,BatchNorm2d,AvgPool2d,BatchNorm2d","[4, 52, 16, 32]",running_mean should contain 52 elements not 39,3617.4680000000308
+fuzz_pt_c287d7c8,Crash,1.0,3213,4,"ReLU,AvgPool2d,MaxPool2d,Linear","[1, 2341]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3581.1674000000266
+fuzz_pt_b3aaa711,Crash,3.35,5527,5,"Flatten,ReLU,ReLU,Conv2d,Conv2d","[128, 52, 32, 32]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [128, 53248]",15016.163300000017
+fuzz_pt_936f5345,Crash,1.0,3664,5,"Linear,ReLU,Flatten,Flatten,Linear","[1, 30, 16, 16]",mat1 and mat2 shapes cannot be multiplied (480x16 and 705x667),3678.788700000041
+fuzz_pt_49a09a9c,Crash,2.01,4333,5,"Linear,AvgPool2d,MaxPool2d,Conv2d,MaxPool2d","[1, 11, 256, 256]",mat1 and mat2 shapes cannot be multiplied (2816x256 and 631x544),3670.4314999999497
+fuzz_pt_b7b501b7,Crash,1.0,4194,3,"AvgPool2d,Linear,Flatten","[64, 2588]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3328.694799999994
+fuzz_pt_4e3975c8,Crash,1.0,1510,1,Linear,"[64, 48, 64, 16]",mat1 and mat2 shapes cannot be multiplied (196608x16 and 573x154),7521.533299999987
+fuzz_pt_042a232f,Crash,1.0,2385,3,"ReLU,Flatten,BatchNorm2d","[16, 10, 32, 16]",expected 4D input (got 2D input),3647.407899999962
+fuzz_pt_36ee25e3,Crash,1.0,4150,3,"Linear,Linear,BatchNorm2d","[1, 2409]",mat1 and mat2 shapes cannot be multiplied (1x2409 and 72x549),3592.1349999999848
+fuzz_pt_9ba16bf9,Crash,1.0,1742,2,"AvgPool2d,Conv2d","[16, 5, 32, 32]","Given groups=1, weight of size [63, 45, 3, 3], expected input[16, 5, 16, 16] to have 45 channels, but got 5 channels instead",3634.6050999999306
+fuzz_pt_f53aa8e0,Crash,1.01,4771,5,"Linear,Conv2d,AvgPool2d,AvgPool2d,ReLU","[64, 63, 1024, 64]",mat1 and mat2 shapes cannot be multiplied (4128768x64 and 429x642),15016.21929999999
+fuzz_pt_1c83c344,Crash,1.0,5247,6,"MaxPool2d,Linear,Conv2d,AvgPool2d,Conv2d,BatchNorm2d","[4, 11, 32, 32]",mat1 and mat2 shapes cannot be multiplied (704x16 and 116x511),3658.554499999923
+fuzz_pt_cd12946b,Crash,1.0,4176,5,"Linear,BatchNorm2d,MaxPool2d,Linear,MaxPool2d","[1, 1705]",mat1 and mat2 shapes cannot be multiplied (1x1705 and 687x596),3568.4687000000395
+fuzz_pt_c76bd4df,Crash,1.0,5665,6,"AvgPool2d,MaxPool2d,MaxPool2d,Conv2d,Conv2d,Conv2d","[1, 4018]","Dimension out of range (expected to be in range of [-2, 1], but got -3)",3600.864300000012
+fuzz_pt_fb1862fd,Crash,1.0,4863,6,"Conv2d,MaxPool2d,Flatten,Flatten,AvgPool2d,Flatten","[256, 3776]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [256, 3776]",3480.4761999999982
+fuzz_pt_92c6491a,Crash,1.0,8175,6,"BatchNorm2d,Conv2d,Conv2d,BatchNorm2d,Linear,Linear","[128, 19, 256, 1024]",running_mean should contain 19 elements not 54,13290.986200000021
+fuzz_pt_9f421e9c,Crash,1.0,1790,2,"BatchNorm2d,Flatten","[64, 659]",expected 4D input (got 2D input),3586.610700000051
+fuzz_pt_20efb1de,Crash,1.0,2359,5,"Flatten,MaxPool2d,Flatten,ReLU,ReLU","[128, 18, 256, 16]",non-empty 3D or 4D (batch mode) tensor expected for input,3655.756599999904
+fuzz_pt_066c0fee,Crash,1.0,3030,5,"BatchNorm2d,BatchNorm2d,BatchNorm2d,Conv2d,Conv2d","[16, 16, 256, 16]",running_mean should contain 16 elements not 21,3844.688900000051
+fuzz_pt_bf374b0c,Crash,3.15,2423,3,"ReLU,MaxPool2d,BatchNorm2d","[16, 30, 128, 32]",running_mean should contain 30 elements not 60,3723.5709999999926
+fuzz_pt_52f5bc0c,Crash,1.0,2278,2,"Linear,Linear","[4, 58, 64, 16]",mat1 and mat2 shapes cannot be multiplied (14848x16 and 859x900),4333.900100000051
+fuzz_pt_79fcbcf2,Crash,1.0,2741,4,"ReLU,ReLU,BatchNorm2d,Conv2d","[16, 45, 64, 16]",running_mean should contain 45 elements not 27,4353.8637000000335
+fuzz_pt_cb876792,Crash,1.0,5382,5,"AvgPool2d,Conv2d,Linear,BatchNorm2d,Flatten","[4, 56, 64, 32]","Given groups=1, weight of size [44, 15, 3, 3], expected input[4, 56, 32, 16] to have 15 channels, but got 56 channels instead",4024.2854000000534
+fuzz_pt_0591deb6,Crash,1.0,884,1,MaxPool2d,"[1, 2499]",non-empty 3D or 4D (batch mode) tensor expected for input,3597.3513999999795
+fuzz_pt_31db6c10,Crash,1.0,4908,6,"Linear,Conv2d,Flatten,Conv2d,Flatten,Conv2d","[4, 10, 1024, 64]",mat1 and mat2 shapes cannot be multiplied (40960x64 and 15x111),3867.86369999993
+fuzz_pt_b1c832b6,Crash,1.0,3754,3,"Conv2d,BatchNorm2d,Flatten","[1, 2131]","Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [1, 2131]",3289.456300000097
+fuzz_pt_879010df,Crash,1.0,2624,3,"Flatten,MaxPool2d,BatchNorm2d","[16, 26, 64, 1024]",non-empty 3D or 4D (batch mode) tensor expected for input,3364.395899999977
+fuzz_pt_bf664901,Crash,1.0,4321,4,"ReLU,BatchNorm2d,Linear,MaxPool2d","[256, 888]",expected 4D input (got 2D input),3418.5707999999977
+fuzz_pt_a3c37a5d,Crash,1.0,5903,6,"AvgPool2d,Linear,ReLU,Linear,Conv2d,Linear","[4, 5, 16, 16]",mat1 and mat2 shapes cannot be multiplied (100x5 and 257x446),3602.4601000000303
+fuzz_pt_bddd1fce,Success,1.52,2015,1,AvgPool2d,"[128, 63, 32, 16]",,3752.9581000000007
+fuzz_pt_f0f51eb6,Crash,1.0,2107,2,"Conv2d,Flatten","[1, 56, 256, 32]","Given groups=1, weight of size [46, 15, 5, 5], expected input[1, 56, 256, 32] to have 15 channels, but got 56 channels instead",3710.0399999999354
+fuzz_pt_8832ae4e,Crash,1.0,2773,3,"Linear,Linear,Flatten","[16, 2360]",mat1 and mat2 shapes cannot be multiplied (16x2360 and 720x116),3571.0489000000507
+fuzz_pt_2d651361,Crash,1.0,2146,4,"BatchNorm2d,AvgPool2d,BatchNorm2d,AvgPool2d","[4, 28, 1024, 64]",running_mean should contain 28 elements not 9,3687.037900000064

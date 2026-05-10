@@ -1,0 +1,153 @@
+[
+    {
+        "case_uid": "test_unet_014",
+        "status": "Success",
+        "execution_time": 1.45,
+        "edge_coverage": 4120,
+        "model_structure": {
+            "layers": [
+                "Input",
+                "Conv2d",
+                "DownSample",
+                "Bottleneck",
+                "UpSample",
+                "Conv2d",
+                "Output"
+            ],
+            "connections": "Input->Conv2d->DownSample->Bottleneck->UpSample->Conv2d->Output",
+            "depth": 7,
+            "operators": [
+                "Conv2d",
+                "DownSample",
+                "Bottleneck",
+                "UpSample",
+                "Output"
+            ]
+        },
+        "error_message": null,
+        "parameters": {
+            "model": "unet",
+            "img_size": 256,
+            "mutation": "random"
+        },
+        "log_content": "[2026-02-07 15:00:10] [INFO] Starting fuzzing session: test_unet_014\n[2026-02-07 15:00:10] [INFO] Model: unet | Img Size: 256 | Mutation: random\n[2026-02-07 15:00:11] [DEBUG] Encoder downsampling complete\n[2026-02-07 15:00:11] [DEBUG] Decoder upsampling and skip connection fusion\n[2026-02-07 15:00:11] [SUCCESS] Test case passed in 1.45s | Edge coverage: 4120"
+    },
+    {
+        "case_uid": "test_gan_015",
+        "status": "Crash",
+        "execution_time": 2.33,
+        "edge_coverage": 1540,
+        "model_structure": {
+            "layers": [
+                "Generator",
+                "Discriminator",
+                "Loss"
+            ],
+            "connections": "Generator->Discriminator->Loss",
+            "depth": 3,
+            "operators": [
+                "Generator",
+                "Discriminator",
+                "Loss"
+            ]
+        },
+        "error_message": "RuntimeError: The size of tensor a (64) must match the size of tensor b (128) at non-singleton dimension 1",
+        "parameters": {
+            "model": "dcgan",
+            "latent_dim": 100,
+            "mutation": "adversarial"
+        },
+        "log_content": "[2026-02-07 15:02:45] [INFO] Starting fuzzing session: test_gan_015\n[2026-02-07 15:02:45] [INFO] Model: dcgan | Latent Dim: 100 | Mutation: adversarial\n[2026-02-07 15:02:46] [DEBUG] Generator forward pass\n[2026-02-07 15:02:47] [ERROR] RuntimeError: The size of tensor a (64) must match the size of tensor b (128) at non-singleton dimension 1\n[2026-02-07 15:02:47] [CRASH] Test case crashed after 2.33s | Edge coverage: 1540"
+    },
+    {
+        "case_uid": "test_rnn_016",
+        "status": "Timeout",
+        "execution_time": 60.0,
+        "edge_coverage": 890,
+        "model_structure": {
+            "layers": [
+                "Input",
+                "Embedding",
+                "RNN",
+                "Linear"
+            ],
+            "connections": "Input->Embedding->RNN->Linear",
+            "depth": 4,
+            "operators": [
+                "Embedding",
+                "RNN",
+                "Linear"
+            ]
+        },
+        "error_message": "TimeoutError: Execution exceeded maximum allowed time (60s)",
+        "parameters": {
+            "model": "simple_rnn",
+            "seq_len": 5000,
+            "mutation": "boundary"
+        },
+        "log_content": "[2026-02-07 15:05:00] [INFO] Starting fuzzing session: test_rnn_016\n[2026-02-07 15:05:00] [INFO] Model: simple_rnn | Seq Len: 5000 | Mutation: boundary\n[2026-02-07 15:05:30] [WARNING] Execution time threshold approaching (30s)\n[2026-02-07 15:06:00] [ERROR] TimeoutError: Execution exceeded maximum allowed time (60s)\n[2026-02-07 15:06:00] [TIMEOUT] Test case timed out after 60.0s | Edge coverage: 890"
+    },
+    {
+        "case_uid": "test_3dcnn_017",
+        "status": "Crash",
+        "execution_time": 3.12,
+        "edge_coverage": 2100,
+        "model_structure": {
+            "layers": [
+                "Input",
+                "Conv3d",
+                "BatchNorm3d",
+                "ReLU",
+                "MaxPool3d",
+                "Linear"
+            ],
+            "connections": "Input->Conv3d->BatchNorm3d->ReLU->MaxPool3d->Linear",
+            "depth": 6,
+            "operators": [
+                "Conv3d",
+                "BatchNorm3d",
+                "ReLU",
+                "MaxPool3d",
+                "Linear"
+            ]
+        },
+        "error_message": "RuntimeError: CUDA out of memory. Tried to allocate 4.50 GiB",
+        "parameters": {
+            "model": "c3d",
+            "batch_size": 16,
+            "mutation": "random"
+        },
+        "log_content": "[2026-02-07 15:08:10] [INFO] Starting fuzzing session: test_3dcnn_017\n[2026-02-07 15:08:10] [INFO] Model: c3d | Batch Size: 16 | Mutation: random\n[2026-02-07 15:08:12] [DEBUG] Conv3d processing video volume...\n[2026-02-07 15:08:13] [ERROR] RuntimeError: CUDA out of memory. Tried to allocate 4.50 GiB\n[2026-02-07 15:08:13] [CRASH] Test case crashed after 3.12s | Edge coverage: 2100"
+    },
+    {
+        "case_uid": "test_maskrcnn_018",
+        "status": "Success",
+        "execution_time": 1.88,
+        "edge_coverage": 5200,
+        "model_structure": {
+            "layers": [
+                "Backbone",
+                "RPN",
+                "ROIAlign",
+                "BoxHead",
+                "MaskHead"
+            ],
+            "connections": "Backbone->RPN->ROIAlign->BoxHead->MaskHead",
+            "depth": 5,
+            "operators": [
+                "Backbone",
+                "RPN",
+                "ROIAlign",
+                "BoxHead",
+                "MaskHead"
+            ]
+        },
+        "error_message": null,
+        "parameters": {
+            "model": "mask_rcnn",
+            "backbone": "resnet50",
+            "mutation": "guided"
+        },
+        "log_content": "[2026-02-07 15:10:30] [INFO] Starting fuzzing session: test_maskrcnn_018\n[2026-02-07 15:10:30] [INFO] Model: mask_rcnn | Backbone: resnet50 | Mutation: guided\n[2026-02-07 15:10:31] [DEBUG] RPN generating proposals\n[2026-02-07 15:10:32] [DEBUG] Mask head predicting segmentation masks\n[2026-02-07 15:10:32] [SUCCESS] Test case passed in 1.88s | Edge coverage: 5200"
+    }
+]

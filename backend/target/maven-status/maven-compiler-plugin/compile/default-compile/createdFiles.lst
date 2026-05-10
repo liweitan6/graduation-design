@@ -1,0 +1,9 @@
+com\fuzzing\config\CorsConfig.class
+com\fuzzing\FuzzingApplication.class
+com\fuzzing\controller\StatisticsController.class
+com\fuzzing\service\PythonServiceClient.class
+com\fuzzing\entity\TestCaseMetadata.class
+com\fuzzing\repository\TestCaseRepository.class
+com\fuzzing\controller\CaseController.class
+com\fuzzing\controller\SearchController.class
+com\fuzzing\service\TestCaseService.class

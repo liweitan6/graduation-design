@@ -1,0 +1,1 @@
+xelatex -interaction=nonstopmode sample-bachelor.tex; bibtex sample-bachelor; xelatex -interaction=nonstopmode sample-bachelor.tex; xelatex -interaction=nonstopmode sample-bachelor.tex

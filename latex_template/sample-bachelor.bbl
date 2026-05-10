@@ -1,0 +1,289 @@
+\begin{thebibliography}{38}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{#1}
+\expandafter\ifx\csname urlstyle\endcsname\relax\else
+  \urlstyle{same}\fi
+\expandafter\ifx\csname href\endcsname\relax
+  \DeclareUrlCommand\doi{\urlstyle{rm}}\else
+  \providecommand\doi[1]{\href{https://doi.org/#1}{\nolinkurl{#1}}}\fi
+
+\bibitem[Zhang et~al.(2022)Zhang, Harman, Ma, and Liu]{ref_dl_testing}
+ZHANG~J~M, HARMAN~M, MA~L, et~al.
+\newblock Machine learning testing: Survey, landscapes and
+  horizons\allowbreak[J].
+\newblock IEEE Transactions on Software Engineering, 2022, 48\penalty0
+  (1):\penalty0 1-36.
+
+\bibitem[Humbatova et~al.(2020)Humbatova, Jahangirova, Bavota, Riccio, Stocco,
+  and Tonella]{ref_dl_safety}
+HUMBATOVA~N, JAHANGIROVA~G, BAVOTA~G, et~al.
+\newblock Taxonomy of real faults in deep learning
+  systems\allowbreak[C]//\allowbreak
+Proceedings of the 42nd International Conference on Software Engineering
+  (ICSE).
+\newblock [S.l.: s.n.], 2020: 1110-1121.
+
+\bibitem[Islam et~al.(2019)Islam, Nguyen, Pan, and Rajan]{ref_dl_vulnerability}
+ISLAM~M~J, NGUYEN~G, PAN~R, et~al.
+\newblock A comprehensive study on deep learning bug
+  characteristics\allowbreak[C]//\allowbreak
+Proceedings of the 27th ACM Joint European Software Engineering Conference and
+  Symposium on the Foundations of Software Engineering (ESEC/FSE).
+\newblock [S.l.: s.n.], 2019: 510-520.
+
+\bibitem[Godefroid(2020)]{ref_fuzzing_survey}
+GODEFROID~P.
+\newblock Fuzzing: Hack, art, and science\allowbreak[J].
+\newblock Communications of the ACM, 2020, 63\penalty0 (2):\penalty0 70-76.
+
+\bibitem[Wong et~al.(2016)Wong, Gao, Li, Abreu, and
+  Wotawa]{ref_fault_localization}
+WONG~W~E, GAO~R, LI~Y, et~al.
+\newblock A survey on software fault localization\allowbreak[J].
+\newblock IEEE Transactions on Software Engineering, 2016, 42\penalty0
+  (8):\penalty0 707-740.
+
+\bibitem[Feldt et~al.(2016)Feldt, Poulding, Clark, and Yoo]{ref_test_diversity}
+FELDT~R, POULDING~S, CLARK~D, et~al.
+\newblock Test set diameter: Quantifying the diversity of sets of test
+  cases\allowbreak[C]//\allowbreak
+Proceedings of the 9th IEEE International Conference on Software Testing,
+  Verification and Validation (ICST).
+\newblock [S.l.: s.n.], 2016: 223-233.
+
+\bibitem[Inozemtseva et~al.(2014)Inozemtseva and
+  Holmes]{ref_test_effectiveness}
+INOZEMTSEVA~L, HOLMES~R.
+\newblock Coverage is not strongly correlated with test suite
+  effectiveness\allowbreak[C]//\allowbreak
+Proceedings of the 36th International Conference on Software Engineering
+  (ICSE).
+\newblock [S.l.: s.n.], 2014: 435-445.
+
+\bibitem[Pei et~al.(2017)Pei, Cao, Yang, and Jana]{ref_deepxplore}
+PEI~K, CAO~Y, YANG~J, et~al.
+\newblock {DeepXplore}: Automated whitebox testing of deep learning
+  systems\allowbreak[C]//\allowbreak
+Proceedings of the 26th ACM Symposium on Operating Systems Principles (SOSP).
+\newblock [S.l.: s.n.], 2017: 1-18.
+
+\bibitem[Xie et~al.(2019)Xie, Ma, Juefei-Xu, Xue, Chen, Liu, Zhao, Li, Yin, and
+  See]{ref_deephunter}
+XIE~X, MA~L, JUEFEI-XU~F, et~al.
+\newblock {DeepHunter}: A coverage-guided fuzz testing framework for deep
+  neural networks\allowbreak[C]//\allowbreak
+Proceedings of the 28th ACM SIGSOFT International Symposium on Software Testing
+  and Analysis (ISSTA).
+\newblock [S.l.: s.n.], 2019: 146-157.
+
+\bibitem[Wei et~al.(2022)Wei, Deng, Yang, and Zhang]{ref_freefuzz}
+WEI~A, DENG~Y, YANG~C, et~al.
+\newblock Free lunch for testing: Fuzzing deep-learning libraries from open
+  source\allowbreak[C]//\allowbreak
+Proceedings of the 44th International Conference on Software Engineering
+  (ICSE).
+\newblock [S.l.: s.n.], 2022: 995-1007.
+
+\bibitem[Deng et~al.(2023)Deng, Xia, Peng, Yang, and Zhang]{ref_titanfuzz}
+DENG~Y, XIA~C~S, PENG~H, et~al.
+\newblock Large language models are zero-shot fuzzers: Fuzzing deep-learning
+  libraries via large language models\allowbreak[C]//\allowbreak
+Proceedings of the 32nd ACM SIGSOFT International Symposium on Software Testing
+  and Analysis (ISSTA).
+\newblock [S.l.: s.n.], 2023: 455-467.
+
+\bibitem[Rothermel et~al.(2001)Rothermel, Untch, Chu, and Harrold]{ref_tcp}
+ROTHERMEL~G, UNTCH~R~H, CHU~C, et~al.
+\newblock Prioritizing test cases for regression testing\allowbreak[J].
+\newblock IEEE Transactions on Software Engineering, 2001, 27\penalty0
+  (10):\penalty0 929-948.
+
+\bibitem[Yoo et~al.(2012)Yoo and Harman]{ref_tsm}
+YOO~S, HARMAN~M.
+\newblock Regression testing minimization, selection and prioritization: A
+  survey\allowbreak[J].
+\newblock Software Testing, Verification and Reliability, 2012, 22\penalty0
+  (2):\penalty0 67-120.
+
+\bibitem[{Zilliz}(2023)]{ref_milvus}
+{Zilliz}.
+\newblock Milvus: Open-source vector database for scalable similarity
+  search\allowbreak[EB/OL].
+\newblock 2023.
+\newblock \url{https://milvus.io}.
+
+\bibitem[Fan et~al.(2023)Fan, Gokkaya, Harman, Lyubarskiy, Sengupta, Yoo, and
+  Zhang]{ref_llm_se}
+FAN~A, GOKKAYA~B, HARMAN~M, et~al.
+\newblock Large language models for software engineering: Survey and open
+  problems\allowbreak[J].
+\newblock arXiv preprint arXiv:2310.03533, 2023.
+
+\bibitem[Chen et~al.(2021)Chen, Tworek, Jun, Yuan, de~Oliveira~Pinto, Kaplan,
+  Edwards, Burda, Joseph, Brockman, Ray, Puri, Krueger, Petrov, Khlaaf, Sastry,
+  Mishkin, Chan, Gray, Ryder, Pavlov, Power, Kaiser, Bavarian, Winter, Tillet,
+  Such, Cummings, Plappert, Chantzis, Barnes, Herbert-Voss, Guss, Nichol,
+  Paino, Tezak, Tang, Babuschkin, Balaji, Jain, Saunders, Hesse, Carr, Leike,
+  Achiam, Misra, Morikawa, Radford, Knight, Brundage, Murati, Mayer, Welinder,
+  McGrew, Amodei, McCandlish, Sutskever, and Zaremba]{ref_codex}
+CHEN~M, TWOREK~J, JUN~H, et~al.
+\newblock Evaluating large language models trained on code\allowbreak[J].
+\newblock arXiv preprint arXiv:2107.03374, 2021.
+
+\bibitem[Rozi\`{e}re et~al.(2023)Rozi\`{e}re, Gehring, Gloeckle, Sootla, Gat,
+  Tan, Adi, Liu, Sauvestre, Remez, Rapin, Kozhevnikov, Evtimov, Bitton, Bhatt,
+  Ferrer, Grattafiori, Xiong, D\'{e}fossez, Copet, Azhar, Touvron, Martin,
+  Usunier, Scialom, and Synnaeve]{ref_codellama}
+ROZI\`{e}RE~B, GEHRING~J, GLOECKLE~F, et~al.
+\newblock Code {Llama}: Open foundation models for code\allowbreak[J].
+\newblock arXiv preprint arXiv:2308.12950, 2023.
+
+\bibitem[Xia et~al.(2023)Xia, Wei, and Zhang]{ref_llm_repair}
+XIA~C~S, WEI~Y, ZHANG~L.
+\newblock Automated program repair in the era of large pre-trained language
+  models\allowbreak[C]//\allowbreak
+Proceedings of the 45th International Conference on Software Engineering
+  (ICSE).
+\newblock [S.l.: s.n.], 2023: 1482-1494.
+
+\bibitem[Ji et~al.(2023)Ji, Lee, Frieske, Yu, Su, Xu, Ishii, Bang, Madotto, and
+  Fung]{ref_llm_hallucination}
+JI~Z, LEE~N, FRIESKE~R, et~al.
+\newblock Survey of hallucination in natural language generation\allowbreak[J].
+\newblock ACM Computing Surveys, 2023, 55\penalty0 (12):\penalty0 1-38.
+
+\bibitem[Lewis et~al.(2020)Lewis, Perez, Piktus, Petroni, Karpukhin, Goyal,
+  K\"{u}ttler, Lewis, tau Yih, Rockt\"{a}schel, Riedel, and Kiela]{ref_rag}
+LEWIS~P, PEREZ~E, PIKTUS~A, et~al.
+\newblock Retrieval-augmented generation for knowledge-intensive {NLP}
+  tasks\allowbreak[C]//\allowbreak
+Advances in Neural Information Processing Systems 33 (NeurIPS).
+\newblock [S.l.: s.n.], 2020: 9459-9474.
+
+\bibitem[Paszke et~al.(2019)Paszke, Gross, Massa, Lerer, Bradbury, Chanan,
+  Killeen, Lin, Gimelshein, Antiga, Desmaison, K\"{o}pf, Yang, DeVito, Raison,
+  Tejani, Chilamkurthy, Steiner, Fang, Bai, and Chintala]{ref_pytorch_arch}
+PASZKE~A, GROSS~S, MASSA~F, et~al.
+\newblock {PyTorch}: An imperative style, high-performance deep learning
+  library\allowbreak[C]//\allowbreak
+Advances in Neural Information Processing Systems 32 (NeurIPS).
+\newblock [S.l.: s.n.], 2019: 8024-8035.
+
+\bibitem[Man\`{e}s et~al.(2021)Man\`{e}s, Han, Han, Cha, Egele, Schwartz, and
+  Woo]{ref_fuzzing_art}
+MAN\`{e}S~V~J~M, HAN~H, HAN~C, et~al.
+\newblock The art, science, and engineering of fuzzing: A survey\allowbreak[J].
+\newblock IEEE Transactions on Software Engineering, 2021, 47\penalty0
+  (11):\penalty0 2312-2331.
+
+\bibitem[B\"{o}hme et~al.(2019)B\"{o}hme, Pham, and Roychoudhury]{ref_afl}
+B\"{o}HME~M, PHAM~V~T, ROYCHOUDHURY~A.
+\newblock Coverage-based greybox fuzzing as {Markov} chain\allowbreak[J].
+\newblock IEEE Transactions on Software Engineering, 2019, 45\penalty0
+  (5):\penalty0 489-506.
+
+\bibitem[Godefroid et~al.(2008)Godefroid, Kiezun, and
+  Levin]{ref_grammar_fuzzing}
+GODEFROID~P, KIEZUN~A, LEVIN~M~Y.
+\newblock Grammar-based whitebox fuzzing\allowbreak[C]//\allowbreak
+Proceedings of the 29th ACM SIGPLAN Conference on Programming Language Design
+  and Implementation (PLDI).
+\newblock [S.l.: s.n.], 2008: 206-215.
+
+\bibitem[McKeeman(1998)]{ref_differential_testing}
+MCKEEMAN~W~M.
+\newblock Differential testing for software\allowbreak[J].
+\newblock Digital Technical Journal, 1998, 10\penalty0 (1):\penalty0 100-107.
+
+\bibitem[Salton et~al.(1988)Salton and Buckley]{ref_tfidf}
+SALTON~G, BUCKLEY~C.
+\newblock Term-weighting approaches in automatic text retrieval\allowbreak[J].
+\newblock Information Processing \& Management, 1988, 24\penalty0 (5):\penalty0
+  513-523.
+
+\bibitem[Reimers et~al.(2019)Reimers and Gurevych]{ref_sbert}
+REIMERS~N, GUREVYCH~I.
+\newblock Sentence-{BERT}: Sentence embeddings using siamese
+  {BERT}-networks\allowbreak[C]//\allowbreak
+Proceedings of the 2019 Conference on Empirical Methods in Natural Language
+  Processing (EMNLP).
+\newblock [S.l.: s.n.], 2019: 3982-3992.
+
+\bibitem[Wang et~al.(2020)Wang, Wei, Dong, Bao, Yang, and Zhou]{ref_minilm}
+WANG~W, WEI~F, DONG~L, et~al.
+\newblock {MiniLM}: Deep self-attention distillation for task-agnostic
+  compression of pre-trained transformers\allowbreak[C]//\allowbreak
+Advances in Neural Information Processing Systems 33 (NeurIPS).
+\newblock [S.l.: s.n.], 2020: 5776-5788.
+
+\bibitem[Aum\"{u}ller et~al.(2020)Aum\"{u}ller, Bernhardsson, and
+  Faithfull]{ref_ann_benchmark}
+AUM\"{u}LLER~M, BERNHARDSSON~E, FAITHFULL~A.
+\newblock {ANN-Benchmarks}: A benchmarking tool for approximate nearest
+  neighbor algorithms\allowbreak[C]//\allowbreak
+Proceedings of the International Conference on Similarity Search and
+  Applications (SISAP).
+\newblock [S.l.: s.n.], 2020: 34-49.
+
+\bibitem[Wang et~al.(2021)Wang, Yi, Guo, Jin, Xu, Li, Wang, Guo, Li, Xu, Yu,
+  Yuan, Zou, Long, Cai, Li, Zhang, Mo, Gu, Jiang, Wei, and
+  Xie]{ref_milvus_arch}
+WANG~J, YI~X, GUO~R, et~al.
+\newblock Milvus: A purpose-built vector data management
+  system\allowbreak[C]//\allowbreak
+Proceedings of the 2021 International Conference on Management of Data
+  (SIGMOD).
+\newblock [S.l.: s.n.], 2021: 2614-2627.
+
+\bibitem[J\'{e}gou et~al.(2011)J\'{e}gou, Douze, and Schmid]{ref_ivf}
+J\'{e}GOU~H, DOUZE~M, SCHMID~C.
+\newblock Product quantization for nearest neighbor search\allowbreak[J].
+\newblock IEEE Transactions on Pattern Analysis and Machine Intelligence, 2011,
+  33\penalty0 (1):\penalty0 117-128.
+
+\bibitem[Jolliffe(2002)]{ref_pca}
+JOLLIFFE~I~T.
+\newblock Principal component analysis\allowbreak[M].
+\newblock 2nd ed.
+\newblock [S.l.]: Springer, 2002.
+
+\bibitem[Ernst et~al.(2007)Ernst, Perkins, Guo, McCamant, Pacheco, Tschantz,
+  and Xiao]{ref_daikon}
+ERNST~M~D, PERKINS~J~H, GUO~P~J, et~al.
+\newblock The {Daikon} system for dynamic detection of likely
+  invariants\allowbreak[J].
+\newblock Science of Computer Programming, 2007, 69\penalty0 (1--3):\penalty0
+  35-45.
+
+\bibitem[Gao et~al.(2024)Gao, Xiong, Gao, Jia, Pan, Bi, Dai, Sun, and
+  Wang]{ref_rag_survey}
+GAO~Y, XIONG~Y, GAO~X, et~al.
+\newblock Retrieval-augmented generation for large language models: A
+  survey\allowbreak[J].
+\newblock arXiv preprint arXiv:2312.10997, 2024.
+
+\bibitem[Shuster et~al.(2021)Shuster, Poff, Chen, Kiela, and
+  Weston]{ref_rag_knowledge}
+SHUSTER~K, POFF~S, CHEN~M, et~al.
+\newblock Retrieval augmentation reduces hallucination in
+  conversation\allowbreak[C]//\allowbreak
+Findings of the Association for Computational Linguistics: EMNLP 2021.
+\newblock [S.l.: s.n.], 2021: 3784-3803.
+
+\bibitem[Zhu et~al.(1997)Zhu, Hall, and May]{ref_coverage_survey}
+ZHU~H, HALL~P~A~V, MAY~J~H~R.
+\newblock Software unit test coverage and adequacy\allowbreak[J].
+\newblock ACM Computing Surveys, 1997, 29\penalty0 (4):\penalty0 366-427.
+
+\bibitem[{Free Software Foundation}(2023)]{ref_gcov}
+{Free Software Foundation}.
+\newblock Gcov --- a test coverage program\allowbreak[Z].
+\newblock [S.l.: s.n.], 2023.
+
+\bibitem[Oberparleiter(2023)]{ref_lcov}
+OBERPARLEITER~P.
+\newblock {LCOV} --- the {LTP} {GCOV} extension\allowbreak[EB/OL].
+\newblock 2023.
+\newblock \url{https://github.com/linux-test-project/lcov}.
+
+\end{thebibliography}

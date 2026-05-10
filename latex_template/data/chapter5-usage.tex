@@ -1,0 +1,656 @@
+% !Mode:: "TeX:UTF-8"
+\chapter{系统实现与功能展示}
+
+\section{开发环境与工具配置}
+
+本系统的开发、测试与部署涉及前端、业务后端、算法后端与底层物理执行四个层面。
+表\ref{tab:dev_env}列出了完整的软硬件环境配置。
+
+\begin{table}[htbp]
+\centering
+\caption{开发环境与工具配置清单}
+\label{tab:dev_env}
+\begin{tabular}{llll}
+\toprule
+类别 & 名称 & 版本/规格 & 用途 \\
+\midrule
+操作系统 & Windows 11 + WSL2 & 23H2 / Ubuntu 22.04 & 开发与物理执行 \\
+处理器 & Intel Core i9-13900K & 24核32线程 & 编译与并行测试 \\
+显卡 & NVIDIA RTX 4090 & 24\,GB GDDR6X & CUDA算子执行 \\
+CUDA工具链 & CUDA Toolkit & 11.8 & GPU运行时环境 \\
+前端框架 & Vue 3 + TypeScript & 3.3 / 5.3 & 单页应用开发 \\
+UI组件库 & Element Plus & 2.4 & 界面组件渲染 \\
+构建工具 & Vite & 5.0 & 前端热更新打包 \\
+业务后端 & Java Spring Boot & 3.2 & CRUD与代理转发 \\
+JDK & OpenJDK & 17 & Java运行时 \\
+算法后端 & Python FastAPI & 0.104 & 算法服务与RAG \\
+Python & CPython & 3.11 & 算法后端运行时 \\
+关系数据库 & MySQL & 8.0 & 结构化元数据存储 \\
+向量数据库 & Milvus & 2.3.x & 高维语义向量存储 \\
+语义编码 & all-MiniLM-L6-v2 & --- & 384维向量编码 \\
+覆盖率工具 & Gcov / LCOV & GCC 11 / 1.16 & C++层探针采集 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+各层之间的通信链路安排如下。
+前端运行于Vite开发服务器（默认端口5173），
+通过Axios HTTP客户端分别向两个后端发起请求。
+基础用例管理类请求（分页查询、状态筛选、详情获取）
+指向Java Spring Boot后端（端口8080）；
+所有涉及向量计算、语义检索、RAG推理与Daikon定界的分析类请求
+指向Python FastAPI后端（端口5000）。
+Java后端对部分分析类请求实现了代理转发机制：
+当前端调用\texttt{/api/search}或\texttt{/api/ask}时，
+Java后端将请求体原样转发至Python后端对应路由，
+并将响应透传回前端。
+该设计使前端仅需维护单一的基础URL配置，
+同时保留了Python后端独立扩展的灵活性。
+
+底层物理执行环境部署于WSL2内的Ubuntu 22.04子系统。
+该子系统中安装了携带Gcov探针的PyTorch编译版本，
+以及独立的Python虚拟环境\texttt{venv\_pytorch}。
+物理执行引擎通过\texttt{multiprocessing.spawn}启动隔离进程，
+在WSL环境下调用插桩后的PyTorch库执行测试脚本并采集覆盖率数据。
+
+\section{后端核心模块实现}
+
+\subsection{Python FastAPI算法后端实现}
+
+Python FastAPI算法后端承载了系统全部的计算密集型功能。
+该服务以单文件形式组织（\texttt{data\_service.py}），
+启动时通过Uvicorn ASGI服务器监听5000端口。
+服务初始化阶段依次完成以下资源加载：
+（1）建立Milvus连接并加载两个向量集合至内存；
+（2）加载预训练的Sentence-BERT模型至GPU（若可用）或CPU；
+（3）验证MySQL连接池可用性。
+
+该后端共注册了12条API路由，按功能划分为五组。
+表\ref{tab:api_routes}列出了各路由的方法、路径与功能摘要。
+
+\begin{table}[htbp]
+\centering
+\caption{Python FastAPI算法后端API路由清单}
+\label{tab:api_routes}
+\begin{tabular}{llp{7.5cm}}
+\toprule
+方法 & 路径 & 功能摘要 \\
+\midrule
+POST & \texttt{/api/ingest} & 批量摄入测试用例，执行双路向量化与双库写入 \\
+POST & \texttt{/api/search} & 意图分类+双路语义检索+加权融合 \\
+POST & \texttt{/api/ask} & RAG问答，召回上下文后注入LLM \\
+GET & \texttt{/api/recent\_cases} & 获取最近入库的测试用例列表 \\
+GET & \texttt{/api/statistics} & 全局统计概览（状态分布、错误排行） \\
+GET & \texttt{/api/analysis/}\allowbreak\texttt{coverage-gaps} & 算子覆盖热力图与盲区差集计算 \\
+GET & \texttt{/api/analysis/}\allowbreak\texttt{efficiency} & CEI效能分析与散点分布 \\
+GET & \texttt{/api/analysis/}\allowbreak\texttt{error-patterns} & 错误模式交叉聚类分析 \\
+GET & \texttt{/api/analysis/}\allowbreak\texttt{correlations} & 算子-错误深层关联矩阵 \\
+POST & \texttt{/api/analysis/}\allowbreak\texttt{fault-boundary} & Daikon双空间故障边界定界 \\
+POST & \texttt{/api/suggest} & AI变异建议与修复方案生成 \\
+POST & \texttt{/api/auto-generate}\allowbreak\texttt{-from-gaps} & 覆盖盲区靶向补盲闭环 \\
+POST & \texttt{/api/analysis/}\allowbreak\texttt{efficiency/prune} & CEI阈值自动清退 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+以下以核心接口\texttt{/api/analysis/}\allowbreak\texttt{fault-boundary}
+为例，详细说明请求体与响应体的JSON结构设计。
+
+该接口的请求体仅包含一个字段：
+
+\texttt{\{"failed\_case\_uid": "<string>"\}}
+
+其中\texttt{failed\_case\_uid}为目标崩溃用例的全局唯一标识符。
+接口内部执行以下处理链路：
+（1）从MySQL查询目标用例的完整元数据与向量主键；
+（2）以向量主键在Milvus中提取结构特征向量；
+（3）在Milvus中执行余弦相似度检索，召回20个最近邻样本；
+（4）将近邻样本按执行状态分为健康组（最多10个）与崩溃组（最多10个）；
+（5）对健康组与崩溃组执行参数展平与张量Diff对比；
+（6）调用Daikon定界引擎推断被违反的数学不变量；
+（7）将Diff结果与数学红线注入LLM提示词，生成自然语言诊断。
+
+响应体的JSON结构包含五个顶层字段，嵌套层级如下：
+
+（1）\texttt{failed\_case}对象。
+包含\texttt{uid}（崩溃用例标识符，字符串类型）
+与\texttt{error}（原始错误文本，字符串类型）两个子字段。
+
+（2）\texttt{successful\_case}对象。
+包含\texttt{uid}（最近邻健康用例标识符）一个子字段。
+
+（3）\texttt{diff}对象。
+包含\texttt{successful\_values}与\texttt{failed\_values}两个子字段，
+均为键值对字典，键为展平后的参数路径（如\texttt{layers.conv1.}%
+\allowbreak\texttt{kernel\_size}），
+值为对应的数值。
+该字段供前端渲染双侧参数对比视图。
+
+（4）\texttt{daikon\_violations}数组。
+每个元素为一条字符串形式的数学约束表达式，
+例如\texttt{"layers.conv1.kernel\_size}%
+\allowbreak\texttt{ + 2 * layers.conv1.padding[0]}%
+\allowbreak\texttt{ >= layers.conv1.input\_size"}。
+数组按变量数量降序排列，多变量约束排在前面。
+
+（5）\texttt{boundary\_rule}字符串。
+LLM基于上述所有上下文生成的自然语言诊断摘要。
+
+数据摄入接口\texttt{/api/ingest}采用POST方法，
+请求体为TestCase对象的JSON数组。
+每个TestCase对象包含以下字段：
+\texttt{case\_uid}（字符串，全局唯一标识）、
+\texttt{status}（字符串，执行状态枚举）、
+\texttt{edge\_coverage}（整数，边覆盖数）、
+\texttt{execution\_time}（浮点数，执行耗时秒）、
+\texttt{error\_message}（字符串或空值，错误文本）、
+\texttt{model\_structure}（嵌套字典，包含\texttt{layers}列表、
+\texttt{connections}连接链、\texttt{depth}深度与\texttt{operators}算子列表四个键）。
+响应体包含\texttt{success}（成功摄入数量）、
+\texttt{ids}（MySQL主键列表）与\texttt{message}（状态描述）三个字段。
+
+语义检索接口\texttt{/api/search}的请求体包含单一字段
+\texttt{query}（用户自然语言查询文本）。
+接口内部首先对查询文本执行意图分类，
+判断用户意图为结构检索、日志检索或混合检索，
+并据此动态调节双路检索权重。
+响应体包含\texttt{results}数组与\texttt{query\_info}对象。
+\texttt{results}数组中每个元素包含用例的完整元数据与相似度得分；
+\texttt{query\_info}对象记录检索参数，
+包括\texttt{intent}（意图分类结果）、
+\texttt{structure\_weight}与\texttt{log\_weight}（双路权重）。
+
+\subsection{Java Spring Boot业务后端实现}
+
+Java Spring Boot后端承载基础的业务数据管理功能，
+监听8080端口并通过MyBatis ORM框架与MySQL交互。
+该后端的核心职责包括三项：
+用例的分页查询与条件筛选、统计数据的聚合计算、
+以及对Python后端分析类接口的代理转发。
+
+用例分页查询接口\texttt{/api/cases}支持三个查询参数：
+\texttt{page}（页码，默认0）、\texttt{size}（每页数量，默认10）、
+\texttt{status}（可选的状态过滤条件）。
+MyBatis Mapper层将这些参数映射为带有\texttt{LIMIT}与\texttt{OFFSET}子句的SQL语句。
+当\texttt{status}参数非空时，Mapper动态拼接\texttt{WHERE status = ?}条件。
+响应体采用Spring Data风格的分页封装，
+包含\texttt{content}（当前页用例数组）、\texttt{totalElements}（总记录数）、
+\texttt{totalPages}（总页数）与\texttt{number}（当前页码）四个字段。
+
+统计接口组包含三条路由：
+\texttt{/api/statistics/overview}返回全局用例总数、崩溃率与平均执行耗时；
+\texttt{/api/statistics/status}返回各状态类别的用例计数；
+\texttt{/api/statistics/errors}返回错误类型排行榜。
+三条路由均通过MyBatis执行\texttt{GROUP BY}聚合查询，
+将结果封装为前端图表组件可直接消费的JSON格式。
+
+代理转发机制的实现基于Spring的\texttt{RestTemplate}组件。
+Java后端在Controller层注册了与Python后端同名的路由映射
+（如\texttt{/api/search}、\texttt{/api/ask}）。
+当请求到达时，Controller将请求体序列化后通过\texttt{RestTemplate}
+转发至\texttt{http://localhost:5000}对应路径，
+并将Python后端的响应体原样返回给前端。
+转发超时设置为60秒，以适应LLM推理可能产生的较长延迟。
+
+\subsection{数据库表结构与向量集合详细设计}
+
+MySQL侧的核心表\texttt{test\_case\_metadata}
+承载所有测试用例的结构化元数据。
+表\ref{tab:mysql_schema}列出了该表的完整字段设计。
+
+\begin{table}[htbp]
+\centering
+\caption{MySQL核心表test\_case\_metadata字段设计}
+\label{tab:mysql_schema}
+\begin{tabular}{llcp{5.5cm}}
+\toprule
+字段名 & 数据类型 & 主键 & 说明 \\
+\midrule
+\texttt{id} & BIGINT & 是 & 自增物理主键 \\
+\texttt{case\_uid} & VARCHAR(64) & 唯一 & 全局唯一业务标识符 \\
+\texttt{status} & VARCHAR(20) & --- & 执行状态（Success/Crash/\allowbreak{}Timeout） \\
+\texttt{edge\_coverage} & INT & --- & Gcov采集的分支边覆盖数 \\
+\texttt{execution\_time} & FLOAT & --- & 执行耗时（秒） \\
+\texttt{error\_message} & TEXT & --- & 原始崩溃日志文本 \\
+\texttt{vector\_id} & BIGINT & --- & Milvus结构向量集合中的主键 \\
+\texttt{parameters} & JSON & --- & 扩展信息（模型结构、双向量ID、\allowbreak{}PCA坐标等） \\
+\texttt{created\_at} & DATETIME & --- & 记录创建时间戳 \\
+\texttt{updated\_at} & DATETIME & --- & 记录最后更新时间戳 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+该表在\texttt{case\_uid}字段上建立唯一索引，
+支持\texttt{ON DUPLICATE KEY UPDATE}语义的幂等写入。
+\texttt{parameters}字段采用MySQL 8.0原生的JSON类型，
+存储结构灵活的扩展信息。
+该字段的典型内容包括：
+模型结构字典（\texttt{layers}、\texttt{connections}、
+\texttt{depth}、\texttt{operators}）、
+PCA降维二维坐标（\texttt{vis\_x}、\texttt{vis\_y}）、
+以及Milvus双向量主键（\texttt{structure\_vector\_id}、
+\texttt{log\_vector\_id}）。
+
+Milvus侧维护两个独立的向量集合，Schema配置相同。
+表\ref{tab:milvus_schema}列出了集合的字段与索引参数。
+
+\begin{table}[htbp]
+\centering
+\caption{Milvus向量集合Schema与索引配置}
+\label{tab:milvus_schema}
+\begin{tabular}{lll}
+\toprule
+配置项 & 参数 & 值 \\
+\midrule
+集合名称（结构向量） & --- & \texttt{fuzzing\_structure} \\
+集合名称（日志向量） & --- & \texttt{fuzzing\_logs} \\
+主键字段 & \texttt{id} & INT64，自动生成 \\
+向量字段 & \texttt{embedding} & FLOAT\_VECTOR，维度384 \\
+索引类型 & \texttt{index\_type} & IVF\_FLAT \\
+相似度度量 & \texttt{metric\_type} & COSINE \\
+倒排列表数量 & \texttt{nlist} & 128 \\
+检索探测簇数 & \texttt{nprobe} & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+两个集合在服务启动时执行\texttt{collection.load()}操作，
+将索引结构与向量数据加载至Milvus的查询节点内存中。
+该操作确保后续的检索请求无需触发磁盘I/O，
+在十万级向量规模下可保障单次检索延迟低于10毫秒。
+
+跨库数据一致性通过写入顺序与补偿机制共同保障。
+数据摄入时严格遵守"先Milvus后MySQL"的写入顺序：
+引擎先将双路向量分别插入两个Milvus集合并获取自动生成的主键，
+随后将主键嵌入MySQL记录的\texttt{parameters} JSON字段。
+若Milvus写入成功但MySQL写入失败，
+系统将失败记录重新推入缓冲队列并记录告警日志。
+数据删除时则遵守"先查MySQL后删Milvus再删MySQL"的三步顺序，
+通过内存级互斥标记防止删除期间的脏读。
+
+\section{前端界面实现与功能展示}
+
+本系统前端基于Vue 3组合式API（Composition API）与TypeScript构建，
+采用Element Plus组件库提供统一的交互控件。
+整体视觉风格为深色主题（背景色\texttt{\#0f172a}）配合靛蓝主色调（\texttt{\#6366f1}），
+呈现极客风格的玻璃拟态（Glassmorphism）效果。
+所有页面组件在\texttt{onMounted}生命周期钩子中触发数据拉取，
+通过Axios实例向对应后端发起HTTP请求并将响应数据绑定至响应式状态变量。
+
+\subsection{系统总览仪表盘}
+
+系统总览仪表盘（Dashboard）作为用户进入系统后的首屏，
+提供全局测试状态的聚合视图。
+页面顶部排列四张统计卡片，分别展示累计测试用例数、测试通过率、异常崩溃总数与平均执行耗时。
+卡片数据通过调用\texttt{/api/statistics/overview}接口获取，
+接口返回的JSON对象中各字段直接绑定至卡片的数值插槽。
+
+页面中部为测试状态分布环形图。
+该图基于\texttt{vue-echarts}组件封装，
+在\texttt{onMounted}钩子中调用\texttt{getStatisticsStatus()}函数拉取状态分布数据。
+接口返回的数组格式为\texttt{[\{name: "Success", value: N\}, ...]}，
+该数组直接赋值给ECharts配置对象的\texttt{series[0].data}属性。
+ECharts内部基于Canvas 2D上下文渲染环形区域，
+每个弧段的弧度由\texttt{value}字段占总和的比例决定。
+环形图以通过与失败两种状态着色，支持鼠标悬停高亮。
+
+页面底部为最近测试用例列表。
+通过\texttt{getRecentCases(10)}拉取最近入库记录，
+以数据表格形式展示用例ID、执行状态标签、边界覆盖率、耗时与创建时间。
+状态标签通过Element Plus的\texttt{el-tag}组件渲染，
+不同状态映射不同的颜色主题（Success为绿色、Crash为红色、Timeout为橙色）。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_dashboard.png}
+\caption{系统总览仪表盘界面}
+\label{fig:ui_dashboard}
+\end{figure}
+
+\subsection{用例管理与智能语义检索界面}
+
+用例管理页面（Cases）提供测试用例的分页浏览与条件筛选功能。
+页面顶部为筛选工具栏，包含状态下拉选择器（\texttt{el-select}）
+与关键词输入框（\texttt{el-input}）。
+用户选择状态筛选条件后，组件通过\texttt{watch}侦听器捕获变化，
+重新调用\texttt{getCases(page, size, status)}拉取对应数据。
+
+主体区域为分页数据表格（\texttt{el-table}），
+列定义包括case\_uid、状态、边覆盖数、执行耗时与创建时间。
+表格底部挂载\texttt{el-pagination}分页组件，
+通过\texttt{current-change}事件触发翻页请求。
+每次翻页时组件重新调用后端接口并将\texttt{content}数组绑定至表格的\texttt{data}属性。
+
+智能语义检索页面（Search）提供自然语言查询入口。
+页面中央为搜索输入框，用户输入自然语言描述后点击搜索按钮，
+前端调用\texttt{semanticSearch(query)}发起POST请求。
+搜索结果以Top-N参考用例卡片形式展示，每张卡片包含用例的核心元数据与相似度百分比。
+相似度数值由后端返回的\texttt{score}字段乘以100得到，
+配合边界覆盖率一同展示于卡片上方。
+
+页面上方集成了RAG智能分析面板。
+用户在搜索框中输入自然语言描述后点击“执行AI分析”按钮，前端调用\texttt{askRAG(query)}接口。
+接口响应中的\texttt{answer}字段以Markdown格式返回，
+前端通过\texttt{v-html}指令配合Markdown解析库将回答渲染为包含错误根因分析、修复建议等结构化内容的富文本卡片。
+搜索框下方提供多个预置查询模板标签，方便用户快速发起常见诊断问题。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_search.png}
+\caption{用例管理与智能语义检索界面}
+\label{fig:ui_search}
+\end{figure}
+
+\subsection{故障边界对比与Daikon定界展示界面}
+
+关联分析页面（Correlations）承载故障边界定界引擎的可视化交互。
+页面顶部提供崩溃用例选择器，用户选中目标崩溃用例后，
+前端调用\texttt{analyzeFaultBoundary}\allowbreak\texttt{(failedCaseUid)}
+发起分析请求。
+
+请求返回后，页面呈现三个功能区域。
+第一区域为双侧参数对比视图。
+左侧面板渲染崩溃用例的展平参数键值对列表，
+右侧面板渲染最近邻健康用例的展平参数列表。
+两侧相同键的行水平对齐，数值差异的行以红色高亮标注。
+该对比数据来源于响应体中\texttt{diff.failed\_values}
+与\texttt{diff.successful\_values}两个字典。
+前端通过JavaScript的\texttt{Object.keys()}提取键集合并排序，
+逐键比对数值是否一致以决定是否施加高亮样式类。
+
+第二区域为数学红线告警面板。
+该面板以告警卡片列表形式渲染响应体中\texttt{daikon\_violations}数组的每个元素。
+每张卡片包含数学公式文本与严重程度标签。
+多变量约束（含三个变量的公式）标记为"高风险"，
+双变量约束标记为"中风险"，单变量约束标记为"低风险"。
+该分级逻辑在前端组件中通过解析公式字符串中变量名数量实现。
+
+第三区域为LLM自然语言诊断报告。
+该区域渲染响应体中\texttt{boundary\_rule}字段的文本内容，
+以卡片形式呈现并配以"AI诊断"标签。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_daikon.png}
+\caption{故障边界对比与Daikon定界展示界面}
+\label{fig:ui_daikon}
+\end{figure}
+
+\subsection{算子覆盖热力图与AI补盲界面}
+
+覆盖率分析页面（Coverage）提供算子组合覆盖状态的全局视图。
+页面主体为算子对热力图，基于ECharts的\texttt{heatmap}系列类型渲染。
+在\texttt{onMounted}钩子中，组件调用\texttt{getCoverageGaps()}接口，
+接口返回包含\texttt{heatmap\_data}二维数组、
+\texttt{operators}算子名称列表与\texttt{uncovered\_pairs}盲区对列表的JSON对象。
+
+热力图的X轴与Y轴均为算子类型名称，
+每个格子的颜色深度由该算子对在测试集中出现的频次决定。
+频次为零的格子（即盲区）以特殊的红色虚线边框标注，
+颜色映射通过ECharts的\texttt{visualMap}组件配置，
+色域从深色背景（频次0）过渡至紫蓝色（频次最高）。
+
+热力图下方展示盲区列表面板。
+每条盲区记录包含源算子、目标算子与该对组合的框架约束摘要。
+面板右上角设置"一键AI补盲"按钮（\texttt{el-button}），
+用户点击后前端调用\texttt{autoGenerateFromGaps(maxPairs)}接口。
+接口返回LLM生成的测试脚本列表，
+每个脚本以代码块形式渲染于弹出对话框中，
+用户确认后系统自动将生成的脚本通过\texttt{/api/ingest}接口导入数据库。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_coverage_heatmap.png}
+\caption{算子覆盖热力图界面}
+\label{fig:ui_coverage_heatmap}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_coverage_blind.png}
+\caption{AI补盲生成界面}
+\label{fig:ui_coverage_blind}
+\end{figure}
+
+\subsection{CEI效能分析与智能清退界面}
+
+效能分析页面（Efficiency）提供CEI指标的可视化与自动清退控制台。
+页面主体为CEI散点图，基于ECharts的\texttt{scatter}系列类型渲染。
+在\texttt{onMounted}钩子中调用\texttt{getEfficiencyAnalysis()}接口，
+接口返回每个用例的\texttt{case\_uid}、\texttt{cei\_score}、
+\texttt{edge\_coverage}与\texttt{execution\_time}字段。
+
+气泡图的X轴为用例复杂度（算子加权总和），Y轴为边界覆盖率，
+每个气泡的大小由CEI值映射（CEI越高气泡越大）。
+页面顶部四张统计卡片分别展示总用例数、平均CEI、最高CEI与最低CEI。
+鼠标悬停气泡时，\texttt{tooltip}组件展示该用例的完整信息。
+
+气泡图下方分列高效能用例排行（高CEI）与低效能用例排行（低CEI）两张对照表格，
+每张表格包含用例ID、CEI得分、覆盖率、复杂度与执行状态列，
+帮助用户直观对比两端用例的特征差异。
+
+智能清退控制台作为独立面板展示。
+系统自动计算CEI阈值（默认为中位数的50\%），
+并展示四项核心指标卡片：CEI阈值、待清退用例数、保留用例数与覆盖率保留比。
+面板同时对比展示清退前后的平均CEI变化。
+控制台右上角提供“预览清退方案”与“执行清退”两个操作按钮：
+前者调用\texttt{pruneByEfficiency}\allowbreak\texttt{(threshold, true)}，
+接口返回将被清退的用例列表但不实际执行删除；
+后者将\texttt{dry\_run}参数设为\texttt{false}，触发实际的跨库级联删除。
+删除完成后前端自动刷新气泡图数据。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_efficiency_scatter.png}
+\caption{CEI效能散点分析界面}
+\label{fig:ui_efficiency_scatter}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_efficiency_prune.png}
+\caption{智能清退控制台界面}
+\label{fig:ui_efficiency_prune}
+\end{figure}
+
+\subsection{PCA多样性聚类监控界面}
+
+多样性分析页面（Diversity）提供测试集在二维PCA投影空间中的分布监控。
+该页面面临的核心渲染挑战在于：当测试用例数量达到万级规模时，
+传统的SVG或Canvas 2D逐点绘制方案将产生严重的帧率下降。
+
+为解决大规模散点渲染的性能问题，本系统采用基于WebGL的渲染方案。
+具体实现通过ECharts的GL扩展插件（\texttt{echarts-gl}）
+配合\texttt{scatterGL}系列类型，
+将散点坐标作为顶点缓冲区（Vertex Buffer）一次性提交至GPU。
+GPU以并行管线的方式执行顶点着色器与片段着色器，
+单帧内可处理十万级顶点而不产生明显延迟。
+相较于Canvas 2D逐点绑定绘制指令的$O(n)$开销，
+WebGL方案将CPU端开销降至$O(1)$级的缓冲区提交操作。
+
+页面在\texttt{onMounted}钩子中调用后端接口获取全部用例的PCA坐标数据。
+接口返回的JSON数组中每个元素包含\texttt{vis\_x}与\texttt{vis\_y}坐标，
+以及\texttt{status}执行状态字段。
+前端将数据按状态分组后分别映射为不同颜色的散点系列：
+成功用例为绿色点，崩溃用例为红色高亮点，超时用例为橙黄色点。
+
+散点图支持交互式区域选择。
+用户可通过鼠标框选散点图中的稀疏区域，
+前端捕获框选事件后提取被选中点的坐标范围，
+并以该范围作为筛选条件查询对应的用例列表。
+稀疏区域对应尚未被充分覆盖的模型结构空间，
+可作为补盲策略的直观入口。
+
+散点图下方展示两个分析面板。
+左侧为“聚类分析挖掘”面板，基于测试用例的执行日志与模型结构的语义相似度进行聚类，
+边缘区域的族群通常代表极端的变异场景。
+右侧为“特征显著性”面板，以标签形式展示当前测试集中最显著的特征关键词（如Conv2d、OOM、Shape Mismatch等），
+帮助用户快速判断测试集的多样性水平与潜在的覆盖盲区。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{figure/ui_diversity.png}
+\caption{PCA多样性聚类监控界面}
+\label{fig:ui_diversity}
+\end{figure}
+
+\section{底层物理执行沙箱实现}
+
+本节描述系统中物理层面的测试执行基础设施。
+物理执行沙箱运行于WSL2 Ubuntu 22.04子系统中，
+其核心任务为：在携带覆盖率探针的PyTorch编译版本上执行测试脚本，
+采集C++层的分支命中数据，
+并以进程级隔离机制防止测试脚本的崩溃向主服务传播。
+
+\subsection{Gcov/LCOV探针的编译挂载流程}
+
+Gcov探针的工作原理基于编译期插桩与运行期计数两阶段协作。
+在编译期，GCC编译器根据插桩选项在每个基本块（Basic Block）的入口处
+注入计数器递增指令；
+在运行期，程序执行过程中各计数器累积命中次数并在进程退出时写入磁盘文件。
+
+为对PyTorch底层C++源码启用Gcov插桩，
+需在WSL环境中修改编译选项。
+具体方式为设置如下环境变量后重新触发CMake配置与编译：
+
+\begin{verbatim}
+export CXXFLAGS="-fprofile-arcs -ftest-coverage"
+export LDFLAGS="-lgcov --coverage"
+\end{verbatim}
+
+其中\texttt{-fprofile-arcs}指令使编译器在每个分支跳转点插入弧计数器，
+\texttt{-ftest-coverage}指令使编译器为每个编译单元生成\texttt{.gcno}文件。
+链接阶段的\texttt{-lgcov}参数将Gcov运行时库静态链接至目标二进制。
+
+编译完成后，每个\texttt{.cpp}源文件对应产生一个\texttt{.gcno}文件。
+该文件记录源码的控制流图拓扑——
+包括基本块编号、块间有向边关系与源码行号映射。
+\texttt{.gcno}文件在编译时一次性生成，后续不再变化。
+
+当携带探针的PyTorch库被测试脚本加载并执行后，
+运行时库在进程正常退出（或收到\texttt{SIGTERM}信号）时，
+将每个弧计数器的累积值写入与\texttt{.gcno}同目录的\texttt{.gcda}文件。
+\texttt{.gcda}文件记录每条边在本次执行中被穿越的次数。
+多次执行产生的\texttt{.gcda}数据会累积叠加。
+
+覆盖率数据的提取通过LCOV命令行工具完成。
+执行流程分为三步：
+
+（1）基线采集。在任何测试执行之前，运行
+\texttt{lcov --capture --initial}%
+\allowbreak\texttt{ --directory /path/to/pytorch/build}%
+\allowbreak\texttt{ --output-file baseline.info}
+生成零计数基线文件。
+
+（2）增量采集。测试脚本执行完毕后，运行
+\texttt{lcov --capture}%
+\allowbreak\texttt{ --directory /path/to/pytorch/build}%
+\allowbreak\texttt{ --output-file test.info}
+采集含有命中计数的覆盖率快照。
+
+（3）差分计算。通过
+\texttt{lcov --remove test.info}%
+\allowbreak\texttt{ '/usr/*' --output-file filtered.info}
+过滤系统头文件贡献后，
+再利用\texttt{genhtml filtered.info}%
+\allowbreak\texttt{ --output-directory coverage\_html}
+生成可视化HTML报告。
+
+该报告中的"行命中数"即为本系统CEI模型中\texttt{edge\_coverage}字段的物理数据来源。
+每次物理执行完成后，Python后端解析\texttt{.info}文件提取总命中行数，
+并将其回写至MySQL对应用例记录。
+
+\subsection{基于multiprocessing.spawn的隔离执行引擎}
+
+测试脚本的执行环境面临两类致命风险：
+其一，脚本可能触发底层C++算子的段错误（Segmentation Fault），
+导致整个进程地址空间被操作系统回收；
+其二，PyTorch内部依赖的OpenMP线程池在\texttt{fork}模式下
+可能继承父进程的锁状态，造成不可恢复的死锁。
+若测试脚本与主Web服务共享进程空间，任一风险均将导致后端服务宕机。
+
+为彻底消除上述风险，本系统采用\texttt{multiprocessing}模块的\texttt{spawn}启动方式。
+与默认的\texttt{fork}模式不同，\texttt{spawn}不复制父进程的内存页表，
+而是启动一个全新的Python解释器进程，
+从零开始导入目标模块并执行指定函数。
+该机制确保子进程持有完全独立的地址空间、线程池与GPU上下文。
+
+启动方式通过在服务初始化阶段调用
+\texttt{multiprocessing.set\_start\_method}%
+\allowbreak\texttt{('spawn', force=True)}全局设定。
+\texttt{force=True}参数覆盖可能已被第三方库设置的启动模式。
+此后所有通过\texttt{multiprocessing.Process}创建的子进程
+均以\texttt{spawn}方式启动。
+
+每个测试脚本的执行流程如下。
+主进程构造\texttt{Process}对象，将执行函数与参数序列化后传入：
+
+\begin{verbatim}
+p = multiprocessing.Process(
+    target=_execute_wrapper,
+    args=(case_uid, input_shape_str, operators_str)
+)
+p.start()
+p.join(timeout=15)
+\end{verbatim}
+
+\texttt{p.join(timeout=15)}使主进程阻塞等待子进程完成，
+最长等待15秒。若子进程在超时时限内未退出，
+主进程调用\texttt{p.terminate()}发送\texttt{SIGTERM}信号强制终止子进程，
+随后调用\texttt{p.join()}等待资源回收完成。
+该超时机制防止因死循环或无限递归导致的资源泄漏。
+
+子进程退出后，主进程通过\texttt{p.exitcode}属性获取退出状态码。
+退出状态码的语义遵循POSIX标准：
+值为0表示正常退出；
+正整数表示Python层未捕获异常导致的退出（如值1为通用错误）；
+负整数表示子进程被操作系统信号终止，其绝对值为信号编号。
+
+当底层C++算子因内存越界触发段错误时，
+Linux内核向子进程发送Signal 11（\texttt{SIGSEGV}）。
+由于子进程未注册该信号的处理函数，
+默认行为为立即终止进程并产生核心转储（若已启用）。
+此时主进程观察到\texttt{p.exitcode == -11}。
+
+主进程根据退出状态码执行分类处理：
+
+\begin{verbatim}
+if p.exitcode == 0:
+    status = "SUCCESS"
+elif p.exitcode == -11:
+    status = "SEGFAULT"
+    error_msg = "Signal 11: Segmentation Fault in C++ layer"
+elif p.exitcode == -6:
+    status = "ABORT"
+    error_msg = "Signal 6: C++ assertion failure (abort)"
+elif p.is_alive():
+    p.terminate()
+    p.join()
+    status = "TIMEOUT"
+else:
+    status = "CRASH"
+    error_msg = f"Exit code: {p.exitcode}"
+\end{verbatim}
+
+Signal 11（段错误）与Signal 6（\texttt{SIGABRT}，断言失败）
+是PyTorch底层算子在非法参数组合下最常触发的两类信号。
+本系统将两者均转换为结构化的错误状态记录，
+写入MySQL的\texttt{status}与\texttt{error\_message}字段，
+供后续的DFS故障溯源与Daikon定界引擎使用。
+
+该隔离机制的核心保障在于：
+无论子进程以何种方式终止——正常退出、异常退出或被信号杀死——
+主进程的地址空间、线程池与网络连接均不受影响。
+FastAPI的ASGI事件循环持续响应其他HTTP请求，
+系统可用性不因单个测试脚本的C++层崩溃而中断。
+
+OpenMP线程死锁的防护同样依赖\texttt{spawn}机制。
+PyTorch在首次执行张量运算时初始化OpenMP线程池，
+线程池内部持有互斥锁保护共享工作队列。
+在\texttt{fork}模式下，子进程继承父进程的锁副本——
+若分叉时刻恰好有线程持有该锁，
+子进程将永久等待一个不会被释放的锁，形成死锁。
+\texttt{spawn}模式通过启动全新解释器彻底规避了该问题：
+子进程的OpenMP线程池从零初始化，不继承任何锁状态。
+这是本系统选择\texttt{spawn}而非\texttt{fork}的根本原因。
+

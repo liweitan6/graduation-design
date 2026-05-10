@@ -1,0 +1,129 @@
+:root {
+  --primary-color: #6366f1;
+  --primary-dark: #4f46e5;
+  --secondary-color: #10b981;
+  --accent-color: #f59e0b;
+  --bg-color: #0b0f1a;
+  /* 更深的背景增强对比 */
+  --sidebar-bg: #111827;
+  /* 更深的侧边栏 */
+  --card-bg: #1e293b;
+  /* 实体背景代替半透明，提高可读性 */
+  --text-primary: #ffffff;
+  /* 纯白文字 */
+  --text-secondary: #cbd5e1;
+  /* 加亮次级文字 */
+  --border-color: #334155;
+  /* 更有感的边框 */
+  --glass-bg: rgba(30, 41, 59, 0.9);
+  /* 降低透明度 */
+  --glass-border: rgba(255, 255, 255, 0.12);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Element Plus Customization */
+.el-card {
+  --el-card-bg-color: var(--card-bg);
+  --el-card-border-color: var(--border-color);
+  color: var(--text-primary);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.el-header {
+  --el-header-padding: 0 20px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Element Plus Drawer 全局深色主题 */
+.el-drawer {
+  background-color: #0b0f1a !important;
+  border-left: 1px solid #334155 !important;
+}
+
+.el-drawer__header {
+  margin-bottom: 0 !important;
+  padding: 20px 24px !important;
+  border-bottom: 1px solid #334155 !important;
+  color: #ffffff !important;
+}
+
+.el-drawer__title {
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+
+.el-drawer__body {
+  padding: 0 !important;
+}
+
+/* Element Plus Descriptions 全局深色主题 */
+.el-descriptions__label {
+  background-color: #1e293b !important;
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+
+.el-descriptions__content {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
