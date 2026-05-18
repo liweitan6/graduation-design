@@ -1,0 +1,90 @@
+% !TeX program = xelatex
+\documentclass[border=10pt,tikz]{standalone}
+\usepackage{ctex}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,shapes.geometric,calc,arrows.meta}
+\begin{document}
+\begin{tikzpicture}[
+  font=\small,
+  layer/.style={draw,dashed,rounded corners=2pt,line width=0.6pt,inner sep=10pt},
+  group/.style={draw,dashed,rounded corners=2pt,line width=0.4pt,inner sep=4pt},
+  mod/.style  ={draw,rounded corners=3pt,fill=blue!6,line width=0.5pt,
+                minimum width=2.6cm,minimum height=0.7cm,align=center,font=\footnotesize},
+  llab/.style ={draw,rounded corners=2pt,fill=gray!10,line width=0.5pt,
+                align=center,font=\bfseries\small,minimum width=0.8cm},
+  cyl/.style  ={draw,cylinder,shape border rotate=90,aspect=0.25,
+                minimum width=1.4cm,minimum height=1.1cm,fill=blue!6,
+                align=center,font=\footnotesize},
+]
+% ===== 应用层 =====
+\node[mod] (a1) at (1.5,10) {测试用例\\检索};
+\node[mod] (a2) at (4.5,10) {散点图\\/热力图};
+\node[mod] (a3) at (7.5,10) {统计概览};
+\node[font=\footnotesize] (g1t) at (4.5,9.05) {数据探索与分析展示};
+\node[group,fit=(a1)(a2)(a3)(g1t)] (G1) {};
+\node[mod] (b1) at (11,10) {故障辅助定位};
+\node[mod] (b2) at (14,10) {辅助诊断报告};
+\node[mod] (b3) at (17,10) {候选补盲脚本};
+\node[font=\footnotesize] (g2t) at (14,9.05) {故障辅助分析展示};
+\node[group,fit=(b1)(b2)(b3)(g2t)] (G2) {};
+\node[font=\footnotesize] (apptitle) at (9.25,8.35)
+  {前端可视化模块（Vue 3 + Element Plus + ECharts）};
+\node[layer,fit=(G1)(G2)(apptitle)] (LApp) {};
+\node[llab,anchor=east,minimum height=2cm] at (LApp.west) {应\\用\\层};
+
+% ===== 服务调度层 =====
+\node[mod] (j1) at (1.5,6.5) {元数据查询};
+\node[mod] (j2) at (4.5,6.5) {状态筛选};
+\node[mod] (j3) at (7.5,6.5) {代理转发(Feign)};
+\node[font=\footnotesize] (jt) at (4.5,5.7) {Java 业务后端 (8080)};
+\node[group,fit=(j1)(j2)(j3)(jt)] (GJ) {};
+\node[mod] (p1) at (11,6.8) {语义检索/双路融合};
+\node[mod] (p2) at (14,6.8) {Daikon 候选边界};
+\node[mod] (p3) at (17,6.8) {CEI 清退};
+\node[mod] (p4) at (12.5,5.8) {RAG 诊断};
+\node[mod] (p5) at (15.5,5.8) {候选补盲生成};
+\node[font=\footnotesize] (pt) at (14,5.0) {Python 算法后端 (5000)};
+\node[group,fit=(p1)(p2)(p3)(p4)(p5)(pt)] (GP) {};
+\draw[<->,>=Stealth,line width=0.5pt] (GJ.east) -- (GP.west);
+\node[layer,fit=(GJ)(GP)] (LSvc) {};
+\node[llab,anchor=east,minimum height=3cm] at (LSvc.west) {服\\务\\调\\度\\层};
+
+% ===== 算法处理层 =====
+\node[mod] (c1) at (1.5,2.5) {日志分层正则解析};
+\node[mod] (c2) at (5,2.5)   {双路 Sentence-BERT 向量化};
+\node[mod] (c3) at (1.5,1.5) {算子覆盖统计};
+\node[mod] (c4) at (5,1.5)   {覆盖盲区差集};
+\node[font=\footnotesize] (ct) at (3.25,0.7) {数据加工模块};
+\node[group,fit=(c1)(c2)(c3)(c4)(ct)] (GC) {};
+\node[mod] (d1) at (10,2.5)   {故障辅助定位（DFS 拓扑回溯）};
+\node[mod] (d2) at (14.5,2.5) {Daikon 候选边界条件分析};
+\node[mod] (d3) at (10,1.5)   {CEI 效能评估与级联清退};
+\node[mod] (d4) at (14.5,1.5) {RAG 辅助诊断 + 候选补盲生成};
+\node[font=\footnotesize] (dt) at (12.25,0.7) {故障辅助分析模块};
+\node[group,fit=(d1)(d2)(d3)(d4)(dt)] (GD) {};
+\node[layer,fit=(GC)(GD)] (LAlg) {};
+\node[llab,anchor=east,minimum height=3cm] at (LAlg.west) {算\\法\\处\\理\\层};
+
+% ===== 数据层 =====
+\node[mod] (e1) at (1.5,-1.0) {Fuzzing 原始用例};
+\node[mod] (e2) at (1.5,-2.0) {崩溃日志文本};
+\node[mod] (e3) at (1.5,-3.0) {算子拓扑结构};
+\node[font=\footnotesize] (et) at (1.5,-3.7) {测试用例数据};
+\node[group,fit=(e1)(e2)(e3)(et)] (GE) {};
+\node[cyl] (db1) at (5.5,-2) {MySQL\\元数据};
+\node[cyl] (db2) at (7.6,-2) {Milvus\\双路向量};
+\node[mod] (f1) at (12,-1.0) {WSL2 + 插桩 PyTorch};
+\node[mod] (f2) at (12,-2.0) {Gcov / LCOV 覆盖采集};
+\node[mod] (f3) at (12,-3.0) {覆盖贡献数据};
+\node[font=\footnotesize] (ft) at (12,-3.7) {物理执行环境};
+\node[group,fit=(f1)(f2)(f3)(ft)] (GF) {};
+\node[layer,fit=(GE)(db1)(db2)(GF)] (LData) {};
+\node[llab,anchor=east,minimum height=3cm] at (LData.west) {数\\据\\层};
+
+% ===== 层间连线 =====
+\draw[<->,>=Stealth,dashed,line width=0.5pt]
+   (LApp.south)  -- node[right,font=\footnotesize]{HTTP / Axios} (LSvc.north);
+\draw[<->,>=Stealth,dashed,line width=0.5pt] (LSvc.south)  -- (LAlg.north);
+\draw[<->,>=Stealth,dashed,line width=0.5pt] (LAlg.south)  -- (LData.north);
+\end{tikzpicture}
+\end{document}

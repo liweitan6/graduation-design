@@ -89,6 +89,89 @@
         </el-descriptions>
       </div>
 
+      <!-- Daikon Fault Boundary Validation -->
+      <div v-if="isFailedCase" class="detail-section">
+        <h4><el-icon><Aim /></el-icon> Daikon 双空间故障边界验证</h4>
+        <div class="boundary-panel" v-loading="boundaryLoading" element-loading-background="rgba(17, 24, 39, 0.75)">
+          <div class="boundary-actions">
+            <div class="boundary-desc">
+              自动推断成功空间约束，并生成满足/不满足约束的样例执行验证。
+            </div>
+            <el-button size="small" type="primary" :loading="boundaryLoading" @click.stop="runBoundaryAnalysis">
+              {{ boundaryResult ? '重新验证' : '开始验证' }}
+            </el-button>
+          </div>
+
+          <el-alert
+            v-if="boundaryError"
+            :title="boundaryError"
+            type="error"
+            show-icon
+            :closable="false"
+            class="boundary-alert"
+          />
+
+          <template v-if="boundaryResult">
+            <div class="boundary-rule-box">
+              <div class="boundary-rule-title">故障边界规则</div>
+              <div class="boundary-rule-text">{{ boundaryResult.boundary_rule || '暂未生成边界规则' }}</div>
+            </div>
+
+            <div v-if="boundaryResult.daikon_violations?.length" class="constraint-tags">
+              <span class="constraint-label">Daikon 约束式：</span>
+              <el-tag v-for="item in boundaryResult.daikon_violations" :key="item" type="warning" effect="plain">
+                {{ item }}
+              </el-tag>
+            </div>
+
+            <div v-if="boundaryValidationReports.length" class="validation-list">
+              <div v-for="(report, index) in boundaryValidationReports" :key="report.constraint || index" class="validation-card">
+                <div class="validation-header">
+                  <div class="constraint-code">{{ report.constraint }}</div>
+                  <el-tag :type="report.is_validated ? 'success' : 'danger'" effect="dark">
+                    {{ report.is_validated ? '验证通过' : '验证未通过' }}
+                  </el-tag>
+                </div>
+
+                <el-row :gutter="12">
+                  <el-col :span="12">
+                    <div class="sample-box positive">
+                      <div class="sample-title">满足约束样例，应成功执行</div>
+                      <div v-for="(sample, idx) in report.positive_cases || []" :key="`p-${idx}`" class="sample-item">
+                        <el-tag size="small" :type="sample.execution_success ? 'success' : 'danger'">
+                          {{ sample.execution_success ? '成功' : '异常' }}
+                        </el-tag>
+                        <span class="sample-param">{{ sample.mutated_key }} = {{ sample.mutated_value }}</span>
+                        <el-tooltip v-if="sample.message" :content="sample.message" placement="top">
+                          <span class="sample-msg">{{ truncateMessage(sample.message) }}</span>
+                        </el-tooltip>
+                      </div>
+                      <div v-if="!report.positive_cases?.length" class="empty-samples">未生成正样例</div>
+                    </div>
+                  </el-col>
+                  <el-col :span="12">
+                    <div class="sample-box negative">
+                      <div class="sample-title">不满足约束样例，应触发报错</div>
+                      <div v-for="(sample, idx) in report.negative_cases || []" :key="`n-${idx}`" class="sample-item">
+                        <el-tag size="small" :type="sample.execution_success ? 'danger' : 'success'">
+                          {{ sample.execution_success ? '未报错' : '已报错' }}
+                        </el-tag>
+                        <span class="sample-param">{{ sample.mutated_key }} = {{ sample.mutated_value }}</span>
+                        <el-tooltip v-if="sample.message" :content="sample.message" placement="top">
+                          <span class="sample-msg">{{ truncateMessage(sample.message) }}</span>
+                        </el-tooltip>
+                      </div>
+                      <div v-if="!report.negative_cases?.length" class="empty-samples">未生成反样例</div>
+                    </div>
+                  </el-col>
+                </el-row>
+              </div>
+            </div>
+            <el-empty v-else description="未得到可验证的 Daikon 约束" :image-size="80" />
+          </template>
+        </div>
+      </div>
+
       <!-- Execution Log -->
       <div v-if="getLogContent(caseData)" class="detail-section">
         <h4><el-icon><Document /></el-icon> 完整运行日志</h4>
@@ -100,8 +183,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { WarningFilled, Connection, Setting, Document, Monitor } from '@element-plus/icons-vue'
-import { analyzeCase } from '../api'
+import { WarningFilled, Connection, Setting, Document, Monitor, Aim } from '@element-plus/icons-vue'
+import { analyzeCase, analyzeFaultBoundary } from '../api'
 
 const props = defineProps<{
   modelValue: boolean
@@ -112,6 +195,9 @@ const emit = defineEmits(['update:modelValue'])
 const visible = ref(props.modelValue)
 const analyzing = ref(false)
 const faultResult = ref<any>(null)
+const boundaryLoading = ref(false)
+const boundaryResult = ref<any>(null)
+const boundaryError = ref('')
 
 watch(() => props.modelValue, (val) => {
   visible.value = val
@@ -119,7 +205,9 @@ watch(() => props.modelValue, (val) => {
 
 watch(visible, async (val) => {
   emit('update:modelValue', val)
-  if (val && props.caseData && props.caseData.status !== 'Success') {
+  boundaryResult.value = null
+  boundaryError.value = ''
+  if (val && props.caseData && isFailedCase.value) {
     analyzing.value = true
     faultResult.value = null
     try {
@@ -147,12 +235,40 @@ const getVal = (obj: any, keys: string[]) => {
   return null
 }
 
+const isFailedCase = computed(() => {
+  const status = String(props.caseData?.status || '').toUpperCase()
+  return !!props.caseData && !['SUCCESS', 'PASSED'].includes(status)
+})
+
+const boundaryValidationReports = computed(() => boundaryResult.value?.daikon_validation || [])
+
 const getStatusType = (status: string) => {
   switch (status) {
     case 'Success': return 'success'
     case 'Crash': return 'danger'
     case 'Timeout': return 'warning'
     default: return 'info'
+  }
+}
+
+const truncateMessage = (msg: string) => {
+  if (!msg) return ''
+  return msg.length > 50 ? msg.substring(0, 50) + '...' : msg
+}
+
+const runBoundaryAnalysis = async () => {
+  const uid = getVal(props.caseData, ['caseUid', 'case_uid'])
+  if (!uid) return
+  boundaryLoading.value = true
+  boundaryError.value = ''
+  try {
+    const res = await analyzeFaultBoundary(uid)
+    boundaryResult.value = res.data
+  } catch (e: any) {
+    console.error('Failed to analyze fault boundary:', e)
+    boundaryError.value = e?.response?.data?.detail || '故障边界验证失败，请检查 Python 分析服务是否启动。'
+  } finally {
+    boundaryLoading.value = false
   }
 }
 
@@ -405,6 +521,141 @@ const getLogContent = (testCase: any) => {
   color: #34d399;
   font-size: 13px;
   font-weight: 500;
+}
+
+.boundary-panel {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 18px;
+  min-height: 96px;
+}
+
+.boundary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.boundary-desc {
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.boundary-alert {
+  margin-bottom: 16px;
+}
+
+.boundary-rule-box {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.boundary-rule-title {
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.boundary-rule-text {
+  color: #e0f2fe;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.constraint-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.constraint-label {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.validation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.validation-card {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.constraint-code {
+  font-family: 'Fira Code', monospace;
+  color: #fbbf24;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.sample-box {
+  border-radius: 6px;
+  padding: 12px;
+  min-height: 112px;
+}
+
+.sample-box.positive {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.sample-box.negative {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+}
+
+.sample-title {
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sample-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.sample-param {
+  color: #cbd5e1;
+  font-family: 'Fira Code', monospace;
+}
+
+.sample-msg {
+  color: #94a3b8;
+  cursor: help;
+}
+
+.empty-samples {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .log-content {

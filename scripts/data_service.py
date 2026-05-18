@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Body
 # 深度分析模块（同目录导入）
 from log_parser import LogParser, parse_error_message
 from fault_locator import FaultLocator, localize_fault
-from boundary_analyzer import analyze_boundary_diff, infer_daikon_invariants
+from boundary_analyzer import analyze_boundary_diff, infer_daikon_invariants, validate_daikon_invariants
 from pydantic import BaseModel
 
 import os
@@ -1896,11 +1896,12 @@ async def analyze_fault_boundary(request: FaultBoundaryRequest):
             if not daikon_failed_params:
                 daikon_failed_params = [failed_params]
         daikon_violations = infer_daikon_invariants(daikon_failed_params, daikon_success_params)
+        daikon_validation = validate_daikon_invariants(daikon_violations, daikon_success_params, samples_per_side=3)
         
         # 7. 利用 DeepSeek 提取边界规则
         daikon_context = ""
         if daikon_violations:
-            daikon_context = f"\n【算法推断的数学越界规律 (Daikon Invariants)】\n系统已通过底层算法测算发现，崩溃用例恰好打破了以下原本在所有成功用例中都绝对成立的数学约束：\n{json.dumps(daikon_violations, ensure_ascii=False)}\n请你务必在回答中采纳并解释这一算法发现的公式关系。\n"
+            daikon_context = f"\n【算法推断的数学越界规律 (Daikon Invariants)】\n系统已通过底层算法测算发现，崩溃用例恰好打破了以下原本在所有成功用例中都绝对成立的数学约束：\n{json.dumps(daikon_violations, ensure_ascii=False)}\n\n【约束式执行验证结果】\n系统已根据约束式自动生成满足约束的正样例与不满足约束的反样例，并使用 PyTorch 算子执行验证：\n{json.dumps(daikon_validation, ensure_ascii=False)}\n请你结合验证结果判断该公式是否可信；若正样例成功、反样例报错，则说明边界约束被执行层面验证。\n"
 
         prompt = f"""
 你是一个深度学习框架（如 PyTorch）的底层排障专家。我们需要找出导致算子崩溃的“故障安全边界 (Fault Boundary)”。
@@ -1931,6 +1932,7 @@ async def analyze_fault_boundary(request: FaultBoundaryRequest):
             },
             "diff": diff_result,
             "daikon_violations": daikon_violations,
+            "daikon_validation": daikon_validation,
             "boundary_rule": boundary_rule
         }
         

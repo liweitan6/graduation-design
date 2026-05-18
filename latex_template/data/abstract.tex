@@ -3,113 +3,123 @@
 % 中英文摘要
 \begin{cabstract}
 
-深度学习框架（如PyTorch、TensorFlow）作为人工智能应用的核心基础设施，
-其底层算子实现的可靠性直接影响上层模型训练与推理的正确性。
-模糊测试（Fuzzing）是检测此类框架底层缺陷的有效手段，
-但在实际应用中面临三项关键挑战：
-（1）大量生成的测试用例中存在高比例的冗余样本，导致执行耗时与覆盖收益不成正比；
-（2）框架崩溃日志通常为非结构化的长文本堆栈，人工排查根因耗时且依赖领域经验；
-（3）测试用例的生成缺乏覆盖反馈指导，容易陷入局部变异的盲目循环。
+深度学习框架（如PyTorch、TensorFlow）是模型训练和推理的基础软件，
+框架底层算子的实现会影响上层程序的运行结果。
+模糊测试（Fuzzing）可以产生大量包含边界参数和算子组合的测试脚本，
+但实际管理这些产物时也会遇到一些问题：
+相似或低收益用例会增加执行开销，
+崩溃日志一般较长，里面混合了多层调用信息，
+相关测试记录如果分散存放，
+后续筛选和故障分析就需要较多人工整理。
 
-针对上述问题，本文设计并实现了一套基于语义检索与大语言模型（LLM）的智能化模糊测试辅助分析平台。
-系统采用前后端分离架构，以Vue 3构建前端交互界面，
-以Python FastAPI承载算法后端，以Java Spring Boot提供业务数据管理，
-以MySQL与Milvus组成的异构混合存储底座支撑结构化元数据与高维语义向量的协同管理。
+本文设计并实现了一套结合语义检索和大语言模型（LLM）的模糊测试辅助分析系统。
+系统采用前后端分离架构，前端用Vue 3做交互界面，
+算法服务由Python FastAPI承载，业务数据由Java Spring Boot管理，
+结构化元数据和高维语义向量分别保存在MySQL和Milvus里。
+系统把各类测试产物放进同一条数据流程中，
+为后续的用例筛选和故障辅助分析提供基础。
 
-在测试效率优化方面，本文提出了覆盖效能指数（Coverage Efficiency Index, CEI）模型。
-CEI综合考量每条测试用例的分支覆盖贡献与加权计算成本，
-通过动态百分位阈值筛选机制剔除低效用例。
-在2000例模拟实验中，以不足4\%的覆盖率损失实现了60\%的执行耗时缩减；
-在1000例真实物理实验中，Gcov/LCOV探针采集的物理命中行数仅下降0.005\%，
-总执行耗时压减34.5\%。
+为了减少低收益用例的执行开销，本文构建了覆盖效能指数（Coverage Efficiency Index, CEI）模型。
+CEI同时考虑单个测试用例的分支覆盖贡献和加权计算成本，
+再通过动态百分位阈值筛选低收益用例。
+在2000例的模拟实验中，该方法在覆盖率损失不足4\%的情况下把执行耗时缩减了60\%；
+在1000例的真实物理实验中，Gcov/LCOV探针采集到的物理命中行数仅下降0.005\%，
+总执行耗时缩减34.5\%。
 
-在故障根因分析方面，本文提出了双空间Daikon边界定界引擎。
-该引擎召回与目标崩溃用例拓扑相同的健康组与崩溃组样本，
-将嵌套张量参数展平为一维数值键值对后，
-在多模板扫描框架下执行不变量推断。
-仅当某数学约束在健康组全票通过且崩溃组全票否决时，
-才将其标记为导致崩溃的"数学红线"。
-实验表明，引擎在五条已知约束上实现了100\%的召回率，
-并在真实数据上自动发现了跨算子的隐式整除约束等非平凡物理红线，
-实现了从"现象记录"到"因果解释"的能力提升。
+针对崩溃故障辅助定位，系统设计了基于相似样本对比的Daikon候选边界条件分析模块，
+把语义相似用例召回和参数约束推断结合起来寻找候选边界条件。
+该模块先召回与目标崩溃用例算子拓扑相同的健康组和崩溃组样本，
+把嵌套的张量参数展平成一维数值键值对，
+再用预设的约束模板扫描候选不变量。
+只有当某条数学约束在健康组样本中全部成立、在崩溃组样本中全部不成立时，
+系统才把它标记为候选边界条件。
+实验结果显示，该模块在五条已知约束上的召回率达到100\%，
+并在真实数据中给出了跨算子的隐式整除候选约束，
+可以为崩溃分析提供参数层面的排查依据。
 
-在智能化闭环方面，本文基于检索增强生成（Retrieval-Augmented Generation, RAG）技术，
-将语义检索召回的相似用例上下文与Daikon数学红线注入结构化四板块提示词模板，
-驱动LLM生成具备项目环境感知的诊断报告与靶向补盲测试脚本。
-RAG辅助诊断在准确性评分上较直接LLM输出提升50\%，幻觉程度降低61\%。
+系统进一步利用检索增强生成（Retrieval-Augmented Generation, RAG）方法，
+把相似用例上下文和Daikon推断出的候选约束写入结构化提示词模板，
+让LLM生成包含相关用例和复现线索的辅助诊断报告，
+同时输出候选补盲测试脚本。
+这些结果主要为开发者提供相似案例和复现方向参考，
+仍需要配合人工复核使用。
 
-系统还实现了基于\texttt{multiprocessing.spawn}的进程级隔离执行引擎，
-通过捕获子进程退出状态码安全拦截底层C++段错误与断言失败，保障主服务持续可用。
-前端基于WebGL渲染方案在20000散点规模下仍保持57 FPS的流畅交互体验。
+此外，系统在物理执行环节使用基于\texttt{multiprocessing.spawn}的子进程隔离方案。
+当测试脚本触发底层C++段错误或断言失败时，
+主进程根据退出状态码识别异常并回收子进程，
+从而减少单个异常用例影响服务进程的可能。
 
 \end{cabstract}
 
 \begin{eabstract}
 
-Deep learning frameworks such as PyTorch and TensorFlow serve as critical infrastructure
-for artificial intelligence applications,
-where the reliability of low-level operator implementations
-directly affects the correctness of model training and inference.
-Fuzz testing is an effective technique for detecting defects in such frameworks;
-however, its practical deployment is hindered by three key challenges:
-(1) a high proportion of redundant test cases that consume substantial execution time
-with disproportionately low coverage gains;
-(2) unstructured crash logs that require significant manual effort and domain expertise
-to diagnose root causes;
-and (3) a lack of coverage-guided feedback in test case generation,
-which leads to blind and repetitive mutations.
+Deep learning frameworks such as PyTorch and TensorFlow are basic software
+used in model training and inference.
+The implementation of their low-level operators
+affects the execution results of upper-level programs.
+Fuzz testing can produce many test scripts containing boundary parameters
+and operator combinations,
+but these outputs are not easy to manage in practice.
+Similar or low-benefit cases increase execution cost,
+crash logs often contain long cross-layer stack traces,
+and coverage contribution data, script structures, and runtime status
+require additional organization before later analysis.
 
-To address these challenges, this thesis designs and implements
-an intelligent fuzz testing analysis platform
-based on semantic retrieval and large language models (LLMs).
-The system adopts a decoupled front-end/back-end architecture,
-with Vue~3 for the interactive front end,
-Python FastAPI for the algorithmic back end,
-Java Spring Boot for business data management,
-and a heterogeneous storage layer composed of MySQL and Milvus
-for the coordinated management of structured metadata and high-dimensional semantic vectors.
+This thesis implements a platform for managing and analyzing fuzzing outputs.
+The system follows a decoupled front-end/back-end architecture:
+Vue~3 is used for the interactive front end,
+Python FastAPI provides the algorithmic service,
+Java Spring Boot manages business data,
+and MySQL with Milvus stores structured metadata
+and high-dimensional semantic vectors.
+The platform organizes test cases, coverage information, and crash logs
+in one analysis workflow,
+supporting test case filtering, fault localization assistance,
+candidate boundary-condition analysis, and auxiliary diagnostic reports.
 
-For test efficiency optimization,
-a Coverage Efficiency Index (CEI) model is proposed.
-CEI jointly considers the branch coverage contribution
+To reduce the execution cost of low-benefit cases,
+this thesis builds a Coverage Efficiency Index (CEI) model.
+CEI considers both the branch coverage contribution
 and the weighted computational cost of each test case,
-and eliminates low-value cases through a dynamic percentile threshold mechanism.
+and filters low-benefit cases using a dynamic percentile threshold.
 In a simulated experiment with 2{,}000 cases,
-less than 4\% coverage loss was incurred while achieving a 60\% reduction in execution time.
-In a physical experiment with 1{,}000 cases instrumented with Gcov/LCOV probes,
+the method reduced execution time by 60\% with less than 4\% coverage loss.
+In a physical experiment with 1{,}000 cases instrumented by Gcov/LCOV probes,
 the number of physically hit lines decreased by only 0.005\%,
-while total execution time was reduced by 34.5\%.
+while the total execution time was reduced by 34.5\%.
 
-For fault root-cause analysis,
-a dual-space Daikon boundary delineation engine is proposed.
-The engine retrieves healthy and crashed samples
+For crash analysis assistance,
+the system implements a Daikon-based candidate boundary-condition analysis module
+using similar-sample comparison,
+which combines semantic retrieval of similar cases
+with parameter-constraint inference to identify candidate boundary conditions.
+The module retrieves healthy and crashed samples
 that share the same operator topology as the target crash case,
-flattens nested tensor parameters into one-dimensional key-value pairs,
-and performs invariant inference under a multi-template scanning framework.
-A mathematical constraint is marked as a ``red line'' only when
-it is unanimously satisfied by all healthy samples
-and unanimously violated by all crashed samples.
-Experiments show that the engine achieves a 100\% recall rate
-on five known constraints
-and automatically discovers non-trivial implicit divisibility constraints
-across operators on real-world crash data,
-elevating the analysis from mere phenomenon recording to causal explanation.
+flattens nested tensor parameters into one-dimensional numerical key-value pairs,
+and scans candidate invariants using predefined constraint templates.
+A mathematical constraint is reported as a candidate boundary condition
+only when it is satisfied by all healthy samples
+and violated by all crashed samples.
+The module reaches a 100\% recall rate on five known constraints
+and also reports candidate boundary conditions in real data,
+including implicit divisibility constraints across operators.
+These results provide parameter-level clues for crash analysis,
+but they still need source-code inspection and reproduction experiments.
 
-For intelligent closed-loop automation,
-Retrieval-Augmented Generation (RAG) is employed
-to inject retrieved similar-case contexts and Daikon-inferred red lines
-into a structured four-block prompt template,
-driving the LLM to generate project-aware diagnostic reports
-and targeted gap-filling test scripts.
-RAG-assisted diagnosis improves accuracy scores by 50\%
-and reduces hallucination levels by 61\% compared to direct LLM output.
+Retrieval-Augmented Generation (RAG) is then used
+to organize retrieved cases and inferred constraints for LLM-based analysis.
+The retrieved similar-case contexts and Daikon-inferred candidate constraints
+are inserted into a structured prompt template,
+so that the LLM can generate auxiliary diagnostic reports containing related cases,
+suspicious constraints, and reproduction clues,
+as well as candidate gap-filling test scripts.
+These outputs are used as references for developers
+and still require manual review and execution validation.
 
-The system also implements a process-level isolated execution engine
-based on \texttt{multiprocessing.spawn},
-which safely intercepts low-level C++ segmentation faults and assertion failures
-by capturing child process exit codes,
-thereby ensuring the continuous availability of the main web service.
-The front end employs a WebGL-based rendering scheme
-that maintains 57 FPS interactive performance at 20{,}000 scatter points.
+The system also implements a process-level isolated execution module
+based on \texttt{multiprocessing.spawn}.
+By capturing child process exit codes,
+this module records low-level C++ segmentation faults and assertion failures
+without running the test script in the main service process.
 
 \end{eabstract}

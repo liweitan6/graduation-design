@@ -1,115 +1,122 @@
+"""导入用于验证 Daikon 双空间故障边界定界的演示样例。"""
+
 import requests
-import json
-import time
 
 API_URL = "http://localhost:5000/api/ingest"
 
-# 准备 10 个成功用例，全部满足 input_size + 2 * padding >= kernel_size
-successful_data = [
-    (10, 1, 3),
-    (5, 2, 5),
-    (8, 0, 3),
-    (4, 1, 5),
-    (7, 2, 7),
-    (20, 0, 7),
-    (6, 1, 3),
-    (12, 0, 5),
-    (3, 1, 3),
-    (9, 2, 5)
-]
-
 payload = []
 
-# 生成成功用例
-for i, (input_size, padding, kernel_size) in enumerate(successful_data):
-    case = {
-        "case_uid": f"demo_daikon_success_{i+1}",
-        "status": "SUCCESS",
-        "execution_time": 0.05 + (i * 0.01),
-        "edge_coverage": 120 + i,
+
+def add_conv2d_kernel_case(uid, status, height, width, kernel, padding, error_message=None):
+    demo_group = "demo_daikon_conv2d_kernel_boundary"
+    payload.append({
+        "case_uid": uid,
+        "status": status,
+        "execution_time": 0.04 if status == "SUCCESS" else 0.01,
+        "edge_coverage": 220 if status == "SUCCESS" else 45,
+        "error_message": error_message,
         "model_structure": {
-            "operators": ["Conv1d", "ReLU"],
-            "layers": [f"Conv1d(in_channels=3, out_channels=16, kernel_size={kernel_size}, padding={padding})", "ReLU()"],
-            "input_size": input_size,
+            "operators": ["Conv2d", "ReLU"],
+            "layers": [
+                f"Conv2d(in_channels=3, out_channels=8, kernel_size={kernel}, padding={padding})",
+                "ReLU()"
+            ],
+            "batch": 1,
+            "in_channels": 3,
+            "out_channels": 8,
+            "input_height": height,
+            "input_width": width,
+            "kernel_size": kernel,
             "padding": padding,
-            "kernel_size": kernel_size,
+            "stride": 1,
+            "groups": 1,
             "depth": 2,
-            "connections": "Conv1d->ReLU"
+            "connections": "Conv2d->ReLU"
         },
-        "parameters": {}
-    }
-    payload.append(case)
+        "parameters": {"demo_group": demo_group}
+    })
 
-# 生成 1 个失败用例，打破 input_size + 2 * padding >= kernel_size (2 + 0 < 5)
-failed_case = {
-    "case_uid": "demo_daikon_failed_1",
-    "status": "FAILED",
-    "execution_time": 0.01,
-    "edge_coverage": 45,
-    "error_message": "RuntimeError: Calculated padded input size per channel: (2). Kernel size: (5). Kernel size can't be greater than actual input size",
-    "model_structure": {
-        "operators": ["Conv1d", "ReLU"],
-        "layers": ["Conv1d(in_channels=3, out_channels=16, kernel_size=5, padding=0)", "ReLU()"],
-        "input_size": 2,
-        "padding": 0,
-        "kernel_size": 5,
-        "depth": 2,
-        "connections": "Conv1d->ReLU"
-    },
-    "parameters": {}
-}
-payload.append(failed_case)
 
-# 另外再造一组测试 in_channels % groups == 0 的用例
-# 成功用例
-groups_success = [
-    (16, 2), (16, 4), (16, 8), (16, 16),
-    (8, 2), (8, 4), (8, 8),
-    (32, 2), (32, 4), (32, 8)
-]
+# 成功空间：全部满足 input_height >= kernel_size 且 input_width >= kernel_size。
+for index, size in enumerate([3, 4, 5, 6, 7, 8, 10, 12], start=1):
+    add_conv2d_kernel_case(
+        uid=f"demo_daikon_kernel_success_{index}",
+        status="SUCCESS",
+        height=size,
+        width=size + 1,
+        kernel=3,
+        padding=0
+    )
 
-for i, (in_channels, groups) in enumerate(groups_success):
-    case = {
-        "case_uid": f"demo_groups_success_{i+1}",
-        "status": "SUCCESS",
-        "execution_time": 0.06,
-        "edge_coverage": 130,
+# 失败空间：打破同一约束，PyTorch Conv2d 会报 kernel size 大于输入尺寸。
+for index, (height, width, kernel) in enumerate([(2, 4, 3), (1, 5, 3), (2, 2, 5)], start=1):
+    add_conv2d_kernel_case(
+        uid=f"demo_daikon_kernel_failed_{index}",
+        status="FAILED",
+        height=height,
+        width=width,
+        kernel=kernel,
+        padding=0,
+        error_message=(
+            f"RuntimeError: Calculated padded input size per channel: ({height} x {width}). "
+            f"Kernel size: ({kernel} x {kernel}). Kernel size can't be greater than actual input size"
+        )
+    )
+
+
+def add_conv2d_groups_case(uid, status, in_channels, groups, error_message=None):
+    demo_group = "demo_daikon_conv2d_groups_boundary"
+    payload.append({
+        "case_uid": uid,
+        "status": status,
+        "execution_time": 0.05 if status == "SUCCESS" else 0.01,
+        "edge_coverage": 240 if status == "SUCCESS" else 50,
+        "error_message": error_message,
         "model_structure": {
             "operators": ["Conv2d", "BatchNorm2d"],
-            "layers": [f"Conv2d(in_channels={in_channels}, out_channels=32, groups={groups})", "BatchNorm2d(32)"],
+            "layers": [
+                f"Conv2d(in_channels={in_channels}, out_channels=24, kernel_size=3, groups={groups})",
+                "BatchNorm2d(24)"
+            ],
+            "batch": 1,
             "in_channels": in_channels,
-            "groups": groups,
+            "out_channels": 24,
+            "input_height": 8,
+            "input_width": 8,
             "kernel_size": 3,
+            "padding": 0,
+            "stride": 1,
+            "groups": groups,
             "depth": 2,
             "connections": "Conv2d->BatchNorm2d"
         },
-        "parameters": {}
-    }
-    payload.append(case)
+        "parameters": {"demo_group": demo_group}
+    })
 
-# 失败用例，打破 in_channels % groups == 0
-failed_groups_case = {
-    "case_uid": "demo_groups_failed_1",
-    "status": "FAILED",
-    "execution_time": 0.01,
-    "edge_coverage": 30,
-    "error_message": "ValueError: in_channels must be divisible by groups",
-    "model_structure": {
-        "operators": ["Conv2d", "BatchNorm2d"],
-        "layers": ["Conv2d(in_channels=16, out_channels=32, groups=3)", "BatchNorm2d(32)"],
-        "in_channels": 16,
-        "groups": 3,
-        "kernel_size": 3,
-        "depth": 2,
-        "connections": "Conv2d->BatchNorm2d"
-    },
-    "parameters": {}
-}
-payload.append(failed_groups_case)
 
-print(f"准备导入 {len(payload)} 条测试数据...")
+# 成功空间：全部满足 in_channels % groups == 0。
+for index, (in_channels, groups) in enumerate([(4, 1), (4, 2), (6, 3), (8, 2), (8, 4), (12, 3), (12, 4), (16, 8)], start=1):
+    add_conv2d_groups_case(
+        uid=f"demo_daikon_groups_success_{index}",
+        status="SUCCESS",
+        in_channels=in_channels,
+        groups=groups
+    )
+
+# 失败空间：打破整除关系。
+for index, (in_channels, groups) in enumerate([(5, 2), (7, 3), (10, 4)], start=1):
+    add_conv2d_groups_case(
+        uid=f"demo_daikon_groups_failed_{index}",
+        status="FAILED",
+        in_channels=in_channels,
+        groups=groups,
+        error_message="ValueError: in_channels must be divisible by groups"
+    )
+
+print(f"准备导入 {len(payload)} 条 Daikon 双空间验证样例...")
+print("建议在前端搜索失败用例 ID: demo_daikon_kernel_failed_1 或 demo_daikon_groups_failed_1")
 try:
-    response = requests.post(API_URL, json=payload, timeout=30)
+    response = requests.post(API_URL, json=payload, timeout=120)
     response.raise_for_status()
     print("导入成功！")
     print("API 响应:", response.json())
