@@ -231,13 +231,13 @@ Milvus侧维护两个独立的向量集合，Schema配置相同。
 
 \subsection{FuzzHub运行总览}
 
-FuzzHub运行总览（Dashboard）是用户进入系统后的首屏，
+FuzzHub运行总览是用户进入系统后的首页，
 主要用于查看测试任务的整体情况。
 页面上方用统计卡片展示累计用例数、通过率、崩溃总数和平均执行耗时，
 中部展示测试状态分布，
 底部列出最近产生的测试用例。
-这些数据主要由后端统计接口和最近用例查询接口提供。
 通过该页面，用户可以先对当前测试集的规模、失败比例和近期执行情况有一个整体认识。
+FuzzHub运行总览界面如图\ref{fig:ui_dashboard}所示。
 
 \begin{figure}[htbp]
 \centering
@@ -248,7 +248,7 @@ FuzzHub运行总览（Dashboard）是用户进入系统后的首屏，
 
 \subsection{用例管理界面}
 
-用例管理页面（Cases）用于浏览和筛选测试用例。
+用例管理页面用于浏览和筛选测试用例。
 用户可以按照执行状态、用例编号等条件查看记录，
 也可以进入单条用例的详情页面。
 表格中主要展示用例ID、执行状态、覆盖数据、运行耗时和错误摘要等信息。
@@ -258,7 +258,7 @@ FuzzHub运行总览（Dashboard）是用户进入系统后的首屏，
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{figure/ui_sample_manage.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_sample_manage.png}
 \caption{测试用例管理界面}
 \label{fig:ui_sample_manage}
 \end{figure}
@@ -281,7 +281,7 @@ FuzzHub运行总览（Dashboard）是用户进入系统后的首屏，
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.88\textwidth]{figure/ui_fault_location.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_fault_location.png}
 \caption{用例详情故障辅助定位界面}
 \label{fig:ui_fault_location}
 \end{figure}
@@ -303,7 +303,7 @@ AI智能分析助手界面如图\ref{fig:ui_ai_assistance}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{figure/ui_ai_assistance.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_ai_assistance.png}
 \caption{AI智能分析助手界面}
 \label{fig:ui_ai_assistance}
 \end{figure}
@@ -311,7 +311,7 @@ AI智能分析助手界面如图\ref{fig:ui_ai_assistance}所示。
 
 \subsection{故障关联分析界面}
 
-故障关联分析页面（Correlations）用于从整体上查看故障与算子的关系。
+故障关联分析页面用于从整体上查看故障与算子的关系。
 页面根据后端返回的故障关联数据，
 展示故障用例数量、高风险算子关联和常见错误类型。
 中部表格按算子和算子组合汇总故障情况，
@@ -322,7 +322,7 @@ AI智能分析助手界面如图\ref{fig:ui_ai_assistance}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{figure/ui_fault_analysis.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_fault_analysis.png}
 \caption{故障关联分析}
 \label{fig:ui_fault_analysis}
 \end{figure}
@@ -339,7 +339,7 @@ AI智能分析助手界面如图\ref{fig:ui_ai_assistance}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{figure/ui_daikon.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_daikon.png}
 \caption{故障临界差分对比}
 \label{fig:ui_daikon}
 \end{figure}
@@ -357,7 +357,7 @@ AI智能分析助手界面如图\ref{fig:ui_ai_assistance}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{figure/ui_coverage.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_coverage.png}
 \caption{算子覆盖缺口分析界面}
 \label{fig:ui_coverage}
 \end{figure}
@@ -371,7 +371,7 @@ AI定向补盲生成结果界面如图\ref{fig:ui_coverage_blind}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{figure/ui_coverage_blind.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_coverage_blind.png}
 \caption{AI定向补盲生成结果界面}
 \label{fig:ui_coverage_blind}
 \end{figure}
@@ -386,7 +386,7 @@ AI定向补盲生成结果界面如图\ref{fig:ui_coverage_blind}所示。
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.80\textwidth]{figure/ui_efficiency_scatter.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_efficiency_scatter.png}
 \caption{测试效能评估界面}
 \label{fig:ui_efficiency_scatter}
 \end{figure}
@@ -394,7 +394,7 @@ AI定向补盲生成结果界面如图\ref{fig:ui_coverage_blind}所示。
 
 \subsection{测试用例多样性分布界面}
 
-多样性分析页面（Diversity）用于展示测试用例在二维PCA投影空间中的分布情况。
+多样性分析页面用于展示测试用例在二维PCA投影空间中的分布情况。
 页面通过散点图展示不同执行状态的样例位置，
 帮助用户从整体上观察测试集是否过于集中。
 如果大量样例聚集在少数区域，
@@ -405,7 +405,7 @@ AI定向补盲生成结果界面如图\ref{fig:ui_coverage_blind}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.83\textwidth]{figure/ui_diversity.png}
+\includegraphics[width=0.75\textwidth]{figure/ui_diversity.png}
 \caption{测试用例多样性分布}
 \label{fig:ui_diversity}
 \end{figure}
