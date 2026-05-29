@@ -5,7 +5,7 @@
       <div class="header-main">
         <el-icon :size="32" color="#6366f1"><MagicStick /></el-icon>
         <div class="title-wrap">
-          <h2>AI 智能测试助手</h2>
+          <h2>AI 智能分析助手</h2>
           <p>基于 RAG 与大模型检索历史用例并生成变异策略。</p>
         </div>
       </div>
@@ -303,10 +303,18 @@ const handleCombinedTask = async () => {
 }
 
 const getStatusType = (status: string) => {
-  switch(status) {
-    case 'Success': return 'success'
-    case 'Crash': return 'danger'
-    case 'Timeout': return 'warning'
+  switch(String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return 'success'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return 'danger'
+    case 'TIMEOUT':
+      return 'warning'
     default: return 'info'
   }
 }

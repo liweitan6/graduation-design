@@ -1,19 +1,29 @@
 % !Mode:: "TeX:UTF-8"
 \chapter{系统详细设计与主要算法}
 
-\section{日志解析与双路向量化流程}
+本章依据第三章给出的系统总体架构图展开详细设计，
+重点描述算法处理层中的核心模块，
+以及这些模块与数据层之间的必要关联，
+包括数据接入与特征表示、异构存储、故障辅助分析以及数据分析与优化等内容。
+
+\section{数据接入与特征表示设计}
+
+数据接入与特征表示设计对应架构图中的数据接入与管理模块。
+该部分负责把Fuzzing产物中的日志、测试脚本和算子拓扑结构整理为可检索、可分析的信息。
+其中，日志解析用于提取错误类型和运行状态，
+双路向量化用于把日志语义和模型结构分别映射到向量空间。
 
 \subsection{基于分层正则匹配的日志解析模块}
 
-Fuzzing工具产出的原始崩溃日志在格式上具有一定异构性。
+Fuzzing工具输出的崩溃日志在格式上不统一。
 同一条记录中可能同时包含多层运行时信息以及多线程交织产生的乱序输出。
 日志解析模块接收原始崩溃日志及相关测试信息，
-将其中可稳定抽取的字段整理为后续分析所需的元数据。
+将其中稳定的字段提取为后续分析所需的元数据。
 
 本系统设计的LogParser模块采用分层正则匹配策略，
-将解析过程分解为错误分类与细粒度字段提取两个独立阶段。
-在错误分类阶段，模块维护一张优先级有序的错误模式表，
-涵盖八种面向DL框架的标准化错误类别，如表\ref{tab:error_categories}所示。
+将解析过程分解为错误分类与字段提取两个独立阶段。
+在错误分类阶段，模块维护一张带有优先级顺序的错误模式表，
+涵盖八种PyTorch测试中常见的错误类别，如表\ref{tab:error_categories}所示。
 
 \begin{table}[htbp]
 \centering
@@ -35,34 +45,31 @@ Fuzzing工具产出的原始崩溃日志在格式上具有一定异构性。
 \end{tabular}
 \end{table}
 
-模块将输入文本统一转换为小写后，依照表中自上而下的优先级逐条扫描关键词。
-一旦命中即终止扫描并返回对应类别标识。
+模块将输入文本统一转换为小写后，依照表中自上而下的优先级顺序扫描关键词。
+一旦命中即终止扫描并返回对应错误类别。
 优先级排列主要依据异常处理时的排查优先级：
 显存溢出与段错误属于系统级致命异常，排在最前；
 数值异常属于静默型偏差，排在最后。
-对于不命中任何模式的日志，模块将其归入\texttt{other}兜底类别。
-该分类结果用于为后续故障辅助定位和检索分析提供错误标签，
-不直接等同于底层缺陷位置。
+对于不命中任何模式的日志，模块将其归入\texttt{other}类别。
+该分类结果用于为后续故障辅助定位和检索分析提供错误标签。
 
-在字段提取阶段，模块针对每种数据类型设计了专用正则表达式族，
-具体提取的结构化字段包括以下六项：
+字段提取阶段则针对不同数据类型分别准备了一组正则表达式，
+从原始日志中抽取出以下六项结构化字段：
 
 （1）错误类型（error\_type）。
-通过匹配Python异常类名模式（如\texttt{(\textbackslash w+Error):}）提取。
-对于C++层的段错误，模块匹配\texttt{Segmentation Fault}字样并映射为统一标识\texttt{SegmentationFault}。
+面向Python异常，模块使用形如\texttt{(\textbackslash w+Error):}的正则匹配得到类名；
+遇到C++层的段错误，则改为检测是否出现\texttt{Segmentation Fault}关键字。
 
 （2）张量维度（tensor\_shapes）。
-DL框架的维度报错存在三种文本格式。
-PyTorch使用方阵表示法\texttt{m1: [32 x 512]}；
-TensorFlow使用函数调用表示法\texttt{size(32, 512)}；
-部分报错还包含匿名格式\texttt{[32 x 512]}。
-模块为三种格式分别编写正则表达式并按优先级依次尝试，
+PyTorch的维度报错主要包含方阵表示法\texttt{m1: [32 x 512]}，
+部分报错还会直接给出匿名形状\texttt{[32 x 512]}。
+模块为这两类格式分别编写正则表达式并按优先级依次尝试，
 成功匹配后输出为\texttt{\{name, shape\}}结构化字典列表。
 
 （3）框架源码位置（source\_location）。
-C++底层报错包含形如\texttt{at /pytorch/.../}\allowbreak\texttt{THTensorMath.cpp:41}的路径信息，
-Python层报错遵循\texttt{File "xxx.py", line 42}格式。
-模块分别以两组正则提取文件名、行号与模块路径。
+C++侧报错一般带有类似\texttt{at /pytorch/.../}\allowbreak\texttt{THTensorMath.cpp:41}的源码路径，
+Python侧则使用\texttt{File "xxx.py", line 42}这样的格式。
+模块分别准备了正则表达式，用于取出文件名、行号和模块路径。
 
 （4）显存信息（memory\_info）。
 仅在\texttt{cuda\_oom}类别下激活。
@@ -74,73 +81,17 @@ Python层报错遵循\texttt{File "xxx.py", line 42}格式。
 （6）原始消息（raw\_message）。
 保留未经处理的完整日志文本，供RAG模块作为LLM上下文素材。
 
-面对多线程交织的脏日志，模块在解析完整执行日志时采用逐行状态机策略。
-系统分别匹配时间戳字段、日志级别字段和错误类型字段。
-时间戳用于恢复事件顺序，
-日志级别用于区分普通信息、错误、崩溃、成功和超时等状态。
-当检测到\texttt{CRASH}级别时，模块提取该行中的执行耗时数值并将最终状态标记为崩溃；
-当检测到\texttt{ERROR}级别时，模块暂存该行作为后续结构化解析的输入。
-不含有效级别标签的行视为前一条日志的续行或冗余调用帧，直接过滤。
-整条日志的最终输出包含事件时间线、执行状态和末尾错误等结构化解析结果。
-
-\subsection{基于DFS拓扑回溯的故障辅助定位模块}
-
-日志解析完成后，系统需要将结构化错误信息映射回测试用例的计算图结构，
-定位出可能与崩溃相关的候选算子节点或参数位置。
-本系统设计的FaultLocator模块基于逆向邻接矩阵与DFS回溯实现该映射，
-其输出用于辅助用户缩小排查范围，而不是直接给出源码级结论。
-
-逆向邻接矩阵的构建过程如下。
-每个测试用例包含一条算子连接链，以有向箭头分隔的字符串形式表示，
-例如\texttt{Conv2d->}\allowbreak\texttt{BatchNorm2d->}\allowbreak\texttt{ReLU->Linear}。
-模块先对该字符串进行分词，以\texttt{->}为分隔符解析出有序算子列表。
-设解析后的算子序列为$\{o_0, o_1, \ldots, o_{n-1}\}$，
-模块为每个算子$o_i$构建索引元组$(operator, index)$。
-在正向邻接关系中，$o_i$指向$o_{i+1}$（$0 \le i < n-1$）；
-在逆向邻接矩阵中，$o_{i+1}$反向指向$o_i$。
-逆向矩阵的构建使得模块能够从错误触发点出发，沿数据流反向回溯至上游相关算子。
-
-每个算子节点的出度（Degree）定义为该节点在逆向邻接矩阵中的后继数量。
-对于线性连接链，所有节点的出度均为1；
-对于包含残差连接或多分支结构的计算图，分支汇聚节点的出度大于1。
-DFS回溯在以下条件之一满足时终止：
-（a）当前节点属于错误相关算子集合；
-（b）回溯深度超过连接链总长度的二分之一；
-（c）当前节点出度为零（即已到达计算图输入端）。
-
-模块针对多类错误设计差异化的定位策略，
-各策略依据不同的算子能力标注集合筛选候选对象。
-例如，维度变换候选主要来自Linear、Conv2d和Reshape等算子；
-高显存或设备相关问题则优先检查Conv类、Attention类和BatchNorm等算子。
-索引操作错误主要关注Embedding、Concat等算子。
-
-以\texttt{shape\_mismatch}错误为例，模块在连接链中扫描所有属于维度变换集合的算子，
-初始置信度设为0.85。
-若日志中同时包含具体的张量维度信息且候选算子为Linear或Conv2d，
-则置信度提升至0.95。
-模块还检查特殊拓扑模式：
-若Conv2d与Linear直接相邻而中间缺少Flatten层，
-则对Linear节点的置信度追加0.05（上限为1.0），
-因为这是DL框架中常见的维度不匹配场景。
-
-最终输出的候选算子节点列表按置信度降序排列，
-每个条目包含算子类型、在连接链中的索引位置、置信度数值与自然语言形式的推理理由。
-这里的置信度只用于排序候选节点，
-不表示真实缺陷概率。
-该列表将传递给前端在计算图可视化中高亮标注候选节点，
-供用户结合相关材料进一步确认。
-
 \subsection{双路向量化特征表示方法}
 
 如第二章所述，本系统采用Sentence-BERT编码模型将离散文本映射为384维稠密浮点向量。
 针对Fuzzing产物的异构特性，系统设计了两条并行的向量化路径。
 
 第一条路径为报错堆栈语义表征。
-模块将测试用例的\texttt{error\_message}字段直接输入Sentence-BERT编码器。
-对于执行成功的用例（无错误信息），模块构造占位文本
-\texttt{"Success: [status] - Model executed OK"}作为编码输入。
-该路径产出的向量存入Milvus的\texttt{fuzzing\_logs}集合，
-用于后续的语义检索功能。
+模块把用例的\texttt{error\_message}字段直接送入Sentence-BERT编码器。
+遇到成功执行、没有错误信息的用例，则补充占位文本
+\texttt{"Success: [status] - Model executed OK"}进行编码。
+这条路径产出的向量写入Milvus中的\texttt{fuzzing\_logs}集合，
+供后续语义检索使用。
 
 第二条路径为图拓扑序列投影。
 模块将测试用例的模型结构字典序列化为标准化文本，
@@ -148,206 +99,151 @@ DFS回溯在以下条件之一满足时终止：
 该文本经Sentence-BERT编码后产出的向量存入Milvus的\texttt{fuzzing\_structure}集合，
 用于多样性分析与拓扑相似性召回。
 
-两条路径在同一批次内并行执行向量化运算，
-共享同一个预加载的all-MiniLM-L6-v2模型实例以避免重复加载开销。
-每个测试用例经此环节后产出两个独立的384维向量，
-分别获得各自的Milvus主键标识符（structure\_vector\_id与log\_vector\_id），
+为了避免重复加载开销，两条路径共用同一个all-MiniLM-L6-v2模型实例。
+每个测试用例经过该处理后会得到两个独立的384维向量。
+
+\section{异构存储模块设计}
+
+异构存储模块用于连接数据接入的结果与后续分析算法。
+结合第三章的技术栈选型，
+系统采用MySQL与Milvus组合保存测试用例数据。
+
+在数据组织上，MySQL中的\texttt{test\_case\_metadata}表以\texttt{case\_uid}作为业务标识，
+保存用例状态、错误信息、分支边覆盖数、执行耗时和扩展参数等信息。
+Milvus维护\texttt{fuzzing\_logs}和\texttt{fuzzing\_structure}两个集合，
+分别对应报错堆栈语义向量和模型结构向量。
+两类数据不放在同一数据库中，
+主要是因为结构化筛选和相似度检索对存储模型的要求不同。
+
+跨库关联通过MySQL中保存的向量主键完成。
+数据接入阶段，系统先完成日志文本和结构文本的向量化，
+再将两路向量写入Milvus并取得各自的主键标识
+（\texttt{structure\_vector\_id}与\texttt{log\_vector\_id}）。
 结构向量主键写入MySQL的\texttt{vector\_id}字段，
 结构向量主键与日志向量主键同时写入\texttt{parameters}字段，
-以维持跨库关联。
+并与结构化元数据和\texttt{case\_uid}一同保存。
+后续检索时，系统可先在Milvus中召回相似向量，
+再依据返回的主键查询MySQL中的元数据。
+这种设计避免在Milvus中保存业务字段，
+也便于在MySQL中维护用例状态、覆盖数据和清退标记。
 
-\section{异构双库存储与数据生命周期管理}
+\section{故障辅助分析模块设计}
 
-\subsection{结构化元数据与向量特征的隔离协同设计}
+故障辅助分析模块对应系统架构图中的故障辅助分析能力，
+主要包括单用例故障辅助定位、语义相似召回、故障关联分析和RAG辅助诊断。
+其中，故障辅助定位用于在用例详情中标注候选算子节点；
+语义相似召回和RAG辅助诊断用于组织历史案例并生成辅助诊断报告；
+故障关联分析则结合相似成功样本与崩溃样本，
+提取候选边界条件和参数差分。
 
-如第三章总体架构所述，本系统采用MySQL与Milvus的异构双库存储方案。
-两库各自承载适合其存储模型的数据类型，
-通过MySQL中保存的case\_uid和向量主键共同维护跨库关联。
+\subsection{基于DFS拓扑回溯的故障辅助定位模块}
 
-MySQL侧的主要表\texttt{test\_case\_metadata}承载结构化元数据，主要字段设计如下：
-\texttt{id}（自增物理主键，BIGINT）、
-\texttt{case\_uid}（全局唯一业务标识，VARCHAR(64)，建立唯一索引）、
-\texttt{status}（执行状态枚举：Success/Crash/Timeout）、
-\texttt{edge\_coverage}（分支覆盖数，INT）、
-\texttt{execution\_time}（执行耗时，FLOAT，单位为秒）、
-\texttt{error\_message}（原始错误文本，TEXT）、
-\texttt{vector\_id}（Milvus中对应的主键，BIGINT）、
-\texttt{parameters}（JSON类型，存储模型结构、可视化坐标、双向量ID等扩展信息）、
-\texttt{created\_at}与\texttt{updated\_at}（时间戳）。
-该表通过\texttt{ON DUPLICATE KEY UPDATE}语义支持幂等写入，
-同一case\_uid的重复导入仅更新字段而不会产生重复记录。
+日志解析完成后，系统需要将结构化错误信息与测试用例的计算图结构相结合，
+定位出可能与崩溃相关的候选算子节点位置。
+本系统设计的FaultLocator模块通过逆向邻接表与DFS回溯实现该功能，
+帮助用户缩小排查范围。
 
-Milvus侧维护两个向量集合。
-\texttt{fuzzing\_structure}集合存储图拓扑结构向量，
-\texttt{fuzzing\_logs}集合存储报错堆栈语义向量。
-两个集合采用相同的Schema配置：
-主键字段\texttt{id}（INT64，自动生成），
-向量字段\texttt{embedding}（FLOAT\_VECTOR，维度384）。
-索引类型选用IVF\_FLAT，相似度度量选用余弦距离（COSINE），
-倒排列表数量（nlist）设为128，检索时探测簇数（nprobe）设为16。
-该配置用于减少高维向量检索时的全量扫描开销。
+逆向邻接表的构建过程如下。
+系统将测试用例中的算子拓扑统一表示为有向图$G=(V,\mathcal{E})$，
+其中节点集合$V$表示算子节点，边集合$\mathcal{E}$表示数据的流向。
+设正向边$(o_i,o_j)\in\mathcal{E}$表示数据由$o_i$流向$o_j$，
+则逆向邻接表中记录$o_j$到$o_i$的反向关系。
 
-跨库绑定的具体方式为：
-在数据接入阶段，模块将双路向量分别插入两个Milvus集合，
-Milvus向量记录本身仅包含自增主键\texttt{id}与向量字段\texttt{embedding}。
-Milvus返回的结构向量主键写入MySQL的\texttt{vector\_id}字段，
-\texttt{structure\_vector\_id}与\texttt{log\_vector\_id}
-则写入MySQL的\texttt{parameters} JSON字段。
-检索时，系统通过Milvus返回的向量主键批量查询MySQL元数据，
-也可以通过MySQL中保存的向量主键定位对应向量记录。
-这种双向关联方式与第三章的异构双库存储设计保持一致。
+具体定位过程如算法\ref{alg:dfs_fault_locator}所示。
 
-\subsection{批量写入顺序与双库一致性维护}
+\begin{algorithm}[htbp]
+\caption{基于DFS回溯的候选算子定位算法}
+\label{alg:dfs_fault_locator}
+\begin{algorithmic}[1]
+\REQUIRE 结构化错误信息$E$，算子有向图$G=(V,\mathcal{E})$
+\ENSURE 候选算子节点列表$\mathcal{L}$
+\STATE 根据边集合$\mathcal{E}$构建逆向邻接表$\mathbf{A}^{-1}$
+\STATE 根据$E$中的错误类别选择错误相关算子集合$\mathcal{M}$
+\STATE 根据$E$确定候选触发节点集合$\mathcal{T}$；若无法确定，则令$\mathcal{T}\leftarrow V$
+\STATE $\mathcal{L} \leftarrow \emptyset$
+\FOR{each trigger node $t \in \mathcal{T}$}
+    \STATE 从$t$开始沿$\mathbf{A}^{-1}$执行DFS回溯
+    \FOR{each visited node $o_i$}
+        \IF{$o_i \in \mathcal{M}$ or $o_i$ matches a risky topology pattern}
+            \STATE 计算候选置信度$score(o_i)$并生成推理理由
+            \STATE $\mathcal{L} \leftarrow \mathcal{L} \cup \{(o_i, \mathrm{id}(o_i), score(o_i), reason)\}$
+        \ENDIF
+        \IF{$o_i \in \mathcal{M}$ or depth exceeds threshold or $\mathbf{A}^{-1}(o_i)=\emptyset$}
+            \STATE 停止当前回溯分支
+        \ENDIF
+    \ENDFOR
+\ENDFOR
+\STATE 对$\mathcal{L}$按置信度降序排序
+\RETURN $\mathcal{L}$
+\end{algorithmic}
+\end{algorithm}
 
-在批量Fuzzing场景下，测试执行模块可能在短时间内产生多条崩溃记录。
-若每条记录都触发一次MySQL写入和两次Milvus写入，
-网络往返和向量编码开销会影响数据接入的稳定性。
-当前设计中，数据接入流程按批次组织待写入记录，
-后端先完成日志文本和脚本结构文本的向量化，
-再将两路向量写入Milvus并取得自动生成的向量主键，
-最后把结构化元数据、\texttt{case\_uid}和向量主键写入MySQL。
+其中，错误相关算子集合$\mathcal{M}$根据错误类型确定。
+例如，维度变换错误主要关注Linear、Conv2d和Reshape等算子；
+高显存问题优先检查Conv类和Attention类算子。
+这里的置信度只用于排序候选节点，不表示真实缺陷概率。
+该列表将传递给前端在计算图可视化中高亮标注候选节点。
 
-写入顺序采用“先Milvus后MySQL”。
-原因在于Milvus的插入操作返回自动生成的向量主键，
-该主键需要写入MySQL记录的\texttt{vector\_id}字段和\texttt{parameters}扩展字段。
-若MySQL先行写入，则结构化记录中会缺少向量主键信息，
-后续语义检索反查元数据时容易出现关联不完整的问题。
-两类数据库不共享同一个事务管理器，
-因此本系统不将该流程描述为严格事务保证。
-工程上可通过批量写入、异常登记和后续补偿处理降低双库状态不一致风险。
+\subsection{语义相似召回与RAG辅助诊断}
 
-\subsection{基于CEI阈值的级联清退与最终一致性维护}
+当用户针对某一崩溃用例发起诊断请求时，
+系统先从历史用例中召回语义相近的记录，
+再把召回结果作为RAG上下文交给LLM生成辅助诊断报告。
+其处理过程如算法\ref{alg:rag_retrieval}所示。
 
-随着Fuzzing持续运行，数据库中将积累一批覆盖收益相对较低的冗余测试用例。
-如第三章所述，本系统通过CEI指标量化每个用例的覆盖效能贡献。
-当用户触发清退操作时，系统需要在MySQL与Milvus之间执行基于向量主键的级联删除流程。
+\begin{algorithm}[htbp]
+\caption{语义相似召回与RAG辅助诊断算法}
+\label{alg:rag_retrieval}
+\begin{algorithmic}[1]
+\REQUIRE 用户查询$q$，最终返回数量$K$
+\ENSURE 召回用例集合$\mathcal{C}$，辅助诊断报告$R$
+\STATE $v_q \leftarrow \text{SentenceBERT}(q)$
+\STATE 在\texttt{fuzzing\_structure}中检索与$v_q$最相似的前$3K$个结构候选
+\STATE 在\texttt{fuzzing\_logs}中检索与$v_q$最相似的前$3K$个日志候选
+\STATE 根据$q$中的结构关键词和日志关键词比例计算两路融合权重
+\STATE 合并两路候选结果，并按融合得分截取前$K$个用例，记为$\mathcal{C}$
+\STATE 根据$\mathcal{C}$中的主键从MySQL反查完整元数据
+\STATE 将元数据和用户查询$q$组装为RAG上下文提示词$P$
+\STATE $R \leftarrow \text{LLM}(P)$
+\RETURN $\mathcal{C}, R$
+\end{algorithmic}
+\end{algorithm}
 
-CEI阈值可采用预设阈值或中位数策略。
-系统先从MySQL中查询所有用例的CEI值并计算其中位数$\tilde{c}$，
-低于$\alpha \cdot \tilde{c}$（默认$\alpha = 0.5$）的用例被标记为清退候选。
-中位数相较于均值受极端离群值影响较小，
-可以减少少数高CEI用例拉高阈值导致误删的情况。
+LLM基于检索到的真实历史案例生成辅助诊断报告，
+为开发者提供故障排查参考信息。
 
-级联清退流程分为三步。
-第一步，从MySQL中批量查询所有满足清退条件的记录，
-提取其\texttt{vector\_id}、\texttt{parameters.structure\_}\allowbreak\texttt{vector\_id}与\texttt{parameters.log\_vector\_id}。
-第二步，调用Milvus的\texttt{delete}接口按主键批量删除两个集合中的对应向量。
-第三步，在MySQL中执行\texttt{DELETE}语句移除对应记录。
+\subsection{故障关联分析}
 
-为减少清退过程中的残留影响，
-检索接口可在返回结果前过滤已进入清退集合的用例，
-降低用户看到即将被移除数据的风险。
-Milvus侧删除后可根据部署配置执行\texttt{flush}以加快持久化，
-但不将其作为跨库一致性的唯一保证。
-由于MySQL与Milvus不共享事务管理器，
-该流程属于级联清退与最终一致性维护，
-而不是严格意义上的事务保证。
-
-\section{Daikon候选边界条件分析}
-
-本节阐述系统中的Daikon候选边界条件分析模块。
-该模块借鉴经典的Daikon动态不变量推断范式\cite{ref_daikon}，
-在成功执行样本与崩溃触发样本构成的对照组中扫描候选约束，
-输出用于辅助分析崩溃触发条件的候选边界条件。
-
-\subsection{对照组召回与参数展平方法}
+故障关联分析中的候选边界条件分析模块借鉴经典的Daikon动态不变量推断范式\cite{ref_daikon}，
+在成功样本与崩溃样本构成的对照组中扫描候选约束，
+输出候选边界条件，用于辅助分析崩溃触发条件。
 
 候选边界条件分析的输入为一个目标崩溃用例。
 模块先提取该用例的图拓扑结构向量，
 在Milvus的\texttt{fuzzing\_structure}集合中执行余弦相似度检索，
 分别召回拓扑结构相似但执行成功的10个用例（健康组$\mathcal{S}$）
 与执行失败的10个用例（崩溃组$\mathcal{F}$）。
-召回条件为结构相似度大于0.85，确保对照样本与目标用例处于相近的算子组合语境下。
+召回条件为结构相似度大于0.85，确保对照样本与目标用例的算子组合足够相近。
 
 召回完成后，模块对每个用例的嵌套参数字典执行展平操作。
-DL测试用例的参数空间通常具有多层嵌套结构：
-顶层为模型结构字典，下辖各层配置子字典，
-每个子字典又包含标量参数与列表参数。
-展平操作的目标是将这种$N$层嵌套结构归约为一维的键值对集合。
+DL测试用例的参数空间通常包含模型结构字典、层配置子字典、标量参数和列表参数。
+展平操作把这些嵌套结构转成一维键值对，
+同时过滤向量主键、覆盖率等无关字段。
+过滤后的键值对集合仅保留与算子配置直接相关的参数。
 
-形式化定义如下。设用例参数字典为$\mathcal{P} = \{(k_i, v_i)\}_{i=1}^{q}$，
-其中每个值$v_i$的类型可为标量$v_i \in \mathbb{R}$、
-子字典$v_i = \{(k_j, v_j)\}$、
-或数值列表$v_i = [a_0, a_1, \ldots, a_{L-1}]$。
-展平函数$\Phi$的递归映射规则为：
-\begin{equation}
-\label{eq:flatten}
-\Phi(\mathcal{P}, \text{prefix}) = \bigcup_{i=1}^{q}
-\begin{cases}
-\{(\text{prefix}.k_i,\; v_i)\} & \text{if } v_i \in \mathbb{R} \\[4pt]
-\Phi(v_i,\; \text{prefix}.k_i) & \text{if } v_i \text{ is dict} \\[4pt]
-\{(\text{prefix}.k_i[j],\; a_j) \mid 0 \le j < L\} & \text{if } v_i = [a_0, \ldots, a_{L-1}]
-\end{cases}
-\end{equation}
-
-以一个典型的CNN测试用例为例，
-参数字典\texttt{\{layers:}\allowbreak\texttt{ \{conv1:}\allowbreak\texttt{ \{in\_channels: 3,}\allowbreak\texttt{ kernel\_size: 5,}\allowbreak\texttt{ padding: [2, 2]\}\}\}}
-经展平后得到键值对集合：
-\texttt{layers.conv1.}\allowbreak\texttt{in\_channels = 3.0}、
-\texttt{layers.conv1.}\allowbreak\texttt{kernel\_size = 5.0}、
-\texttt{layers.conv1.}\allowbreak\texttt{padding[0] = 2.0}、
-\texttt{layers.conv1.}\allowbreak\texttt{padding[1] = 2.0}。
-
-展平过程中，模块过滤以下无关字段：
-可视化坐标（vis\_x, vis\_y）、向量主键（vector\_id）、
-唯一标识（uid）、执行状态（status）、错误信息（error）、
-时间戳（time）以及覆盖率（coverage）。
-过滤后的键值对集合仅保留与算子配置直接相关的数值参数。
-
-展平完成后，模块计算健康组与崩溃组所有样本的键集合交集：
+展平完成后，模块计算健康组与崩溃组所有样本的键集合交集，
+其中$\Phi(\cdot)$表示参数展平后的键值对集合：
 \begin{equation}
 \label{eq:common_keys}
 \mathcal{K} = \bigcap_{s \in \mathcal{S}} \text{keys}(\Phi(s)) \;\cap\; \bigcap_{f \in \mathcal{F}} \text{keys}(\Phi(f))
 \end{equation}
-仅在$\mathcal{K}$中的键才进入后续的候选约束扫描环节，
-确保所有对照样本在相同的参数维度上具有可比性。
+仅在$\mathcal{K}$中的键才进入后续的候选约束扫描环节。
 
-\subsection{候选约束扫描与边界条件推断}
-
-本小节说明模块的主要判定逻辑。
 模块在公共键集合$\mathcal{K}$上扫描三层模板池，
-逐层递增变量数量与公式复杂度。
-仅当某条候选约束同时满足“成功全票通过”与“失败全票否决”的双重验证判据时，
+包括单变量阈值与奇偶性模板、双变量约束与整除关系模板，
+以及三变量约束模板。
+仅当某条候选约束同时满足“成功全票通过”与“失败全票否决”的双重验证时，
 该约束才被加入候选边界条件集合。
-这些候选边界条件反映当前健康组与崩溃组样本中的参数差异，
-可作为参数层面的排查线索，
-不能直接等同于源码级结论。
-
-\textbf{第一层：单变量约束扫描。}
-对$\mathcal{K}$中的每个键$x$，模块测试以下模板：
-
-（a）常数阈值模板。取阈值集合$V = \{0, 1, -1\}$，逐一验证
-$x > v$、$x \ge v$、$x = v$三种关系是否满足双重判据。
-
-（b）奇偶性模板。验证$x \bmod 2 = 0$是否在健康组全部成立且在崩溃组全部违反。
-该模板对应部分算子的通道数或分组参数约束，
-例如DL框架中的GroupNorm、PixelShuffle等算子对通道数存在整除关系要求。
-
-\textbf{第二层：双变量关系约束扫描。}
-对$\mathcal{K}$中的任意两个键$x$和$y$（$x \ne y$），模块测试以下模板：
-
-（a）基础关系模板：$x = y$、$x \le y$、$x < y$。
-
-（b）整除关系模板：$x \bmod y = 0$（要求$y \ne 0$）。
-该模板对应卷积分组操作中的整除约束，
-例如\texttt{in\_channels}能被\texttt{groups}整除。
-
-（c）线性关系模板：$x \le c \cdot y + d$以及$x \ge c \cdot y + d$，
-其中系数$c \in \{2, 3, 4\}$，偏移$d \in \{0, 1, -1\}$。
-该模板覆盖了DL框架中常见的倍数关系约束，
-例如转置卷积的输出尺寸公式中的2倍因子。
-
-\textbf{第三层：三变量约束扫描。}
-对$\mathcal{K}$中的任意三个互不相同的键$x$、$y$、$z$，模块测试以下模板：
-
-（a）空间坍缩公式：$x + 2y \ge z$。
-该模板对应CNN中的有效感受野约束——
-当\texttt{input\_size + 2 * padding}\allowbreak\texttt{ < kernel\_size}时，
-卷积输出尺寸可能降为零或负值，触发框架运行时异常。
-
-（b）张量维度乘积守恒：$x \cdot y = z$。
-该模板对应Reshape操作的元素总量守恒约束——
-重塑前后张量的元素总数必须相等。
 
 上述三层扫描的双重验证判据以算法\ref{alg:dual_verify}的伪代码形式给出。
 
@@ -384,72 +280,36 @@ $x > v$、$x \ge v$、$x = v$三种关系是否满足双重判据。
 \end{algorithmic}
 \end{algorithm}
 
-算法\ref{alg:dual_verify}的时间复杂度分析如下。
-设公共键数量为$n$，对照组总样本数为$N = |\mathcal{S}| + |\mathcal{F}|$。
-单变量模板的候选谓词数量为$O(n)$，
-双变量模板为$O(n^2)$，三变量模板为$O(n^3)$。
-每个候选谓词需遍历$N$个样本进行验证。
-因此总时间复杂度为$O(n^3 \cdot N)$。
-在实际场景中，展平后的公共键数量通常不超过30，
-对照组总样本数为20，因此在当前样本规模下，该步骤的计算开销相对有限。
-
 提取出的约束集合$\mathcal{R}$经去重后按优先级排序：
 多变量约束排在单变量约束之前，
-因为多变量约束包含更丰富的变量间交互信息，对崩溃条件的解释力更强。
+因为多变量约束包含更丰富的变量间交互信息。
 排序后的约束列表即为该崩溃用例的候选边界条件集合，
 用于为开发者提供后续排查线索。
 
-\subsection{约束解释与辅助诊断报告生成}
+最后，系统把候选约束集合$\mathcal{R}$、参数差分和相关测试上下文组装为提示词，
+由LLM生成用于解释候选约束的辅助诊断报告。
+前端将候选数学公式和辅助诊断报告并列展示。
 
-候选边界条件以形式化公式表达，便于程序验证，
-但对非专家用户缺乏可读性。
-因此，系统在生成辅助诊断报告时，
-会把相关分析结果和测试上下文一起提供给LLM。
+\section{数据分析与优化模块设计}
 
-约束推断阶段即上述候选边界条件分析模块，
-可输出形如\texttt{layers.conv1.kernel\_size +}\allowbreak{}
-\texttt{2 * layers.conv1.padding[0] >=}\allowbreak{}
-\texttt{layers.conv1.input\_size}的候选数学约束。
+数据分析与优化模块对应架构图中的数据分析与优化能力。
+该模块针对测试集整体质量，
+提供多样性分布观察、效能评估、算子覆盖缺口分析以及候选补盲测试脚本生成等功能。
 
-辅助诊断报告生成阶段基于RAG流程调用LLM。
-模块将候选约束集合$\mathcal{R}$和相关测试上下文组装为结构化提示词模板，注入LLM。
-提示词要求LLM先用自然语言解释候选约束，
-再结合具体参数值说明违反约束可能对应的情况，
-最后给出可供人工检查的参数修正建议或候选安全参数组合。
+\subsection{基于PCA的测试集多样性分析}
 
-LLM的输出经格式化后与约束推断结果并列展示于前端界面。
-用户可同时获得可机器验证的数学公式与可阅读的辅助诊断报告。
-这样可以减少单独依赖LLM时输出偏离样本数据的情况：
-候选约束由规则扫描过程从真实样本中提取，
-LLM主要负责解释和组织文本，其输出仍需结合源码和复现实验确认。
-
-在工程实现上，系统先完成约束推断并得到约束集合$\mathcal{R}$，
-再把$\mathcal{R}$作为上下文的一部分送入LLM生成辅助诊断报告。
-这种顺序使生成内容主要围绕已有候选约束展开，
-降低输出偏离实际样本数据的可能性。
-
-\section{测试集多样性度量与CEI效能评估模型}
-
-\subsection{基于PCA的特征降维与空间分布观察}
-
-Fuzzing过程会持续产生测试用例。
+Fuzzing过程会不断产生测试用例。
 这些用例在语义向量空间中的分布，
 可以用于观察测试集在算子组合和参数结构上的差异。
 由于384维向量空间不便直接查看，
-系统需要先将其降到二维平面。
+系统需要先将它压缩到二维平面。
 
 本系统在批量更新后或用户请求多样性分析时，对当前样本集合统一执行PCA降维。
 具体流程为：取当前参与分析的测试用例结构向量矩阵$\mathbf{X} \in \mathbb{R}^{b \times 384}$
 （$b$为参与降维的样本数量），计算协方差矩阵并提取前两个主成分方向，
 将每个样本投影至二维坐标$(x_i, y_i)$。
 投影后的坐标经最小-最大归一化映射至$[-1, 1]$区间，
-存入MySQL的parameters字段中的\texttt{vis\_x}与\texttt{vis\_y}键。
-
-当样本数不足2时，PCA无法提取有效主成分方向。
-此时系统退化为随机微扰策略，为每个样本生成幅度为0.01的随机坐标，
-避免前端散点图中所有点重叠于原点。
-当样本数恰好为2时，PCA仅能提取一个主成分，
-系统将第二维度填充为零后仍执行归一化操作。
+存入MySQL的\texttt{parameters}字段中的\texttt{vis\_x}与\texttt{vis\_y}键。
 
 前端散点图基于上述二维坐标渲染。
 用户可观察测试集的空间分布形态：
@@ -458,29 +318,24 @@ Fuzzing过程会持续产生测试用例。
 稀疏区域对应尚未被充分测试的算子拓扑组合，
 可作为后续补盲策略的参考方向。
 
-\subsection{覆盖效能指数量化模型}
+\subsection{CEI覆盖效能指数量化模型}
 
-CEI用来描述单个测试用例在覆盖贡献数据和计算成本之间的关系。
-其中覆盖贡献数据在公式中表示为分支边覆盖数$E_{\text{edge}}$。
-简单来说，一个只包含两个轻量算子却触发较多分支边覆盖的用例，
-比一个包含十层复杂算子但只覆盖少量分支的用例更值得保留。
-
-CEI的数学定义如下：
+CEI用来描述单个测试用例在覆盖贡献数据和计算成本之间的关系，其数学定义如下：
 \begin{equation}
 \label{eq:cei}
 \mathrm{CEI} = \frac{E_{\text{edge}}}{\displaystyle\sum_{i=1}^{m} w_i \cdot c_i}
 \end{equation}
-其中$E_{\text{edge}}$为该用例的分支边覆盖数（由Gcov/LCOV采集），
+其中$E_{\text{edge}}$为该用例的分支边覆盖数，
 $m$为该用例计算图中不同算子类型的数量，
 $c_i$为第$i$类算子在计算图中的出现次数，
-$w_i$为第$i$类算子对应的标准化权重系数。
+$w_i$为第$i$类算子对应的权重系数。
 公式分母表示按算子类型和出现次数估计的计算成本，
-不包含执行耗时变量；执行耗时可以作为实验评估或运行监控指标单独记录。
+不包含执行耗时变量；执行耗时可以作为实验评估指标单独记录。
 
 算子权重$w_i$的设计原则是：
-计算密度越高、参数空间越大的算子，赋予的权重越大，
-因为这类算子消耗的框架执行资源更多，却不一定带来更高的覆盖贡献。
-表\ref{tab:operator_weight}列出本系统采用的部分算子权重基准。
+计算量越大、参数空间越大的算子，赋予的权重越大，
+因为这类算子消耗的执行资源更多，却不一定带来更高的覆盖贡献。
+表\ref{tab:operator_weight}列出本系统的部分算子权重。
 
 \begin{table}[htbp]
 \centering
@@ -500,37 +355,46 @@ $w_i$为第$i$类算子对应的标准化权重系数。
 \end{tabular}
 \end{table}
 
-以一个包含\texttt{Conv2d->}%
-\allowbreak\texttt{BatchNorm2d->}%
-\allowbreak\texttt{ReLU->Linear}的测试用例为例，
-其分母计算为$3.0 \times 1 + 1.5 \times 1 + 0.5 \times 1 + 3.0 \times 1 = 8.0$。
-若该用例的边覆盖数为240，则$\mathrm{CEI} = 240 / 8.0 = 30.0$。
-
 系统在执行清退时，把全库CEI中位数的$\alpha$倍作为淘汰阈值。
 CEI低于这个阈值的用例在当前指标下覆盖收益相对较低，会进入级联删除流程。
 这一流程主要帮助识别冗余数据，
 减少它们对存储空间和后续分析结果的干扰。
 
-\subsection{算子组合缺口的关联分析方法}
+当用户确认执行清退操作时，
+系统需要按照MySQL中保存的向量主键同步处理Milvus向量记录。
+具体流程分为三步。
+第一步，从MySQL中批量查询满足清退条件的记录，
+提取其\texttt{vector\_id}、
+\texttt{parameters.structure\_}\allowbreak\texttt{vector\_id}
+和\texttt{parameters.log\_vector\_id}。
+第二步，调用Milvus的\texttt{delete}接口按主键删除两个集合中的对应向量。
+第三步，在MySQL中执行\texttt{DELETE}语句移除对应元数据记录。
 
-除了对单个用例做效能评估之外，系统还需要从全局视角分析“测试盲区”，
-也就是DL框架支持但当前测试集还没有覆盖的算子组合模式。
+\subsection{算子覆盖缺口分析}
 
-系统维护一张标准算子库（Standard Operator Library）$\mathcal{O}$，
-包含目标DL框架所有公开注册的算子类型。
-以PyTorch为例，$\mathcal{O}$涵盖卷积族、线性族和归一化族等约60种算子。
+除了对单个用例做效能评估之外，系统还需要从全局视角分析测试盲区，
+即在当前已出现算子和常用算子范围内，
+尚未被测试集覆盖的算子组合模式。
+
+系统不直接枚举PyTorch中的全部公开算子，
+而是构造用于缺口分析的候选算子集合$\mathcal{O}$。
+该集合由两部分组成：
+一部分是当前测试集中已经出现过的算子类型，
+另一部分是预设的20个常用PyTorch算子类型。
+记当前测试集已出现算子集合为$\mathcal{O}_{\text{seen}}$，
+常用算子集合为$\mathcal{O}_{\text{common}}$，
+则有：
+\begin{equation}
+\label{eq:operator_pool}
+\mathcal{O} = \mathcal{O}_{\text{seen}} \cup \mathcal{O}_{\text{common}}
+\end{equation}
 
 全局邻接矩阵$\mathbf{A} \in \{0,1\}^{|\mathcal{O}| \times |\mathcal{O}|}$
-记录当前测试集中已经出现过的算子对组合关系。
-具体构建方法是：遍历MySQL中所有测试用例的连接链，
-对每条连接链$o_0 \to o_1 \to \cdots \to o_{k-1}$中的每对相邻算子$(o_i, o_{i+1})$，
-把$\mathbf{A}[o_i][o_{i+1}]$置为1。
-遍历完成后，$\mathbf{A}$中值为1的元素对应已经覆盖的算子对，
-值为0的元素对应还没有被任何用例触及的算子对。
+记录了当前测试集中已经出现过的算子对组合关系。
 
 盲区提取通过集合差运算来完成。
-定义理论可行算子对全集$\mathcal{E}_{\text{all}}$为标准算子库中
-所有在DL框架语义下合法的前后衔接组合（排除物理上不可能的对，
+定义候选可行算子对全集$\mathcal{E}_{\text{all}}$为$\mathcal{O}$中
+所有在PyTorch算子语义下合法的算子组合（排除不合理的组合，
 例如\texttt{Softmax}不能直接接\texttt{Conv2d}的通道输入端）。
 已覆盖算子对集合$\mathcal{E}_{\text{covered}} = \{(i,j) \mid \mathbf{A}[i][j] = 1\}$。
 盲区集合定义为：
@@ -540,46 +404,16 @@ CEI低于这个阈值的用例在当前指标下覆盖收益相对较低，会�
 \end{equation}
 
 盲区集合$\mathcal{B}$中的每个元素$(o_i, o_j)$表示一对还没被测试的算子衔接。
-系统把$\mathcal{B}$按算子类别分组后输出为结构化列表，
-每个条目包含源算子类型、目标算子类型以及该对组合在框架文档中的参数约束摘要。
-这一列表会作为后续RAG补盲模块的输入目标。
+系统把$\mathcal{B}$按算子类别分组后输出为结构化列表。
+这一列表会作为后续补盲模块的输入目标。
 
-\section{基于RAG的辅助诊断与候选补盲设计}
-
-\subsection{基于历史上下文的辅助诊断}
-
-当用户针对某一崩溃用例发起诊断请求时，
-系统会启动基于历史上下文的辅助诊断流程。
-这一流程由四个串行阶段组成。
-
-第一阶段是特征向量化。
-系统把用户查询文本经Sentence-BERT编码为384维向量。
-
-第二阶段是双路并行检索。
-系统在\texttt{fuzzing\_structure}和\texttt{fuzzing\_logs}两个Milvus集合中
-分别执行余弦相似度检索，各返回前$3K$个候选结果（$K$为最终返回数量）。
-
-第三阶段是权重融合。
-系统根据查询文本中包含的结构关键词和日志关键词比例，
-调整两路检索得分的融合权重。
-在当前实现中，复合查询默认采用双路融合；
-当查询明显偏向结构或日志信息时，提高对应检索路径的权重。
-融合后再按得分降序截取前$K$个结果。
-
-第四阶段是上下文组装和LLM推理。
-系统从MySQL中反查召回用例的完整元数据，
-把召回结果中的基础元数据拼装为结构化的上下文文本，连同用户原始查询一起送入LLM。
-LLM基于检索到的真实历史案例生成辅助诊断报告，
-为开发者提供故障排查参考信息。
-这一输出仍然需要用户结合源码和复现实验作进一步检查。
-
-\subsection{算子缺口补盲与候选用例生成}
+\subsection{覆盖缺口驱动的候选补盲测试脚本生成}
 
 盲区集合$\mathcal{B}$标记了当前测试集的覆盖缺口。
 本系统通过构造结构化提示词，
 让LLM生成候选补盲测试脚本来覆盖这些缺口。
 
-结构化提示词的设计如下：
+结构化提示词的设计如表\ref{tab:prompt_template}所示：
 
 \begin{table}[htbp]
 \centering
@@ -627,8 +461,7 @@ Context板块注入真实的历史数据作为参考，减少无上下文生成�
 Target板块指定覆盖目标，减少LLM生成已有冗余用例的可能；
 Constraint板块给出语法和结构约束，让输出更便于后续检查和执行验证。
 
-LLM生成的候选补盲测试脚本不能直接当作可用的测试输入，
-需要经过必要的检查、试运行和人工确认。
-通过验证的脚本可以作为后续测试输入的候选材料，
+LLM生成的候选补盲测试脚本经过必要的检查和确认后，
+可以作为后续测试输入的候选材料，
 再由开发者确认是否进入数据接入流程，
 形成“发现盲区→生成候选补盲测试脚本→执行验证→后续分析”的处理流程。

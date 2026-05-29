@@ -95,10 +95,10 @@
         <div class="boundary-panel" v-loading="boundaryLoading" element-loading-background="rgba(17, 24, 39, 0.75)">
           <div class="boundary-actions">
             <div class="boundary-desc">
-              自动推断成功空间约束，并生成满足/不满足约束的样例执行验证。
+              自动推断成功空间约束，并生成满足/不满足约束的待人工验证样例。
             </div>
             <el-button size="small" type="primary" :loading="boundaryLoading" @click.stop="runBoundaryAnalysis">
-              {{ boundaryResult ? '重新验证' : '开始验证' }}
+              {{ boundaryResult ? '重新生成' : '生成样例' }}
             </el-button>
           </div>
 
@@ -128,8 +128,8 @@
               <div v-for="(report, index) in boundaryValidationReports" :key="report.constraint || index" class="validation-card">
                 <div class="validation-header">
                   <div class="constraint-code">{{ report.constraint }}</div>
-                  <el-tag :type="report.is_validated ? 'success' : 'danger'" effect="dark">
-                    {{ report.is_validated ? '验证通过' : '验证未通过' }}
+                  <el-tag :type="report.is_validated ? 'success' : 'info'" effect="dark">
+                    {{ report.is_validated ? '验证通过' : '待人工验证' }}
                   </el-tag>
                 </div>
 
@@ -138,8 +138,8 @@
                     <div class="sample-box positive">
                       <div class="sample-title">满足约束样例，应成功执行</div>
                       <div v-for="(sample, idx) in report.positive_cases || []" :key="`p-${idx}`" class="sample-item">
-                        <el-tag size="small" :type="sample.execution_success ? 'success' : 'danger'">
-                          {{ sample.execution_success ? '成功' : '异常' }}
+                        <el-tag size="small" type="info">
+                          期望成功
                         </el-tag>
                         <span class="sample-param">{{ sample.mutated_key }} = {{ sample.mutated_value }}</span>
                         <el-tooltip v-if="sample.message" :content="sample.message" placement="top">
@@ -153,8 +153,8 @@
                     <div class="sample-box negative">
                       <div class="sample-title">不满足约束样例，应触发报错</div>
                       <div v-for="(sample, idx) in report.negative_cases || []" :key="`n-${idx}`" class="sample-item">
-                        <el-tag size="small" :type="sample.execution_success ? 'danger' : 'success'">
-                          {{ sample.execution_success ? '未报错' : '已报错' }}
+                        <el-tag size="small" type="warning">
+                          期望报错
                         </el-tag>
                         <span class="sample-param">{{ sample.mutated_key }} = {{ sample.mutated_value }}</span>
                         <el-tooltip v-if="sample.message" :content="sample.message" placement="top">
@@ -243,10 +243,18 @@ const isFailedCase = computed(() => {
 const boundaryValidationReports = computed(() => boundaryResult.value?.daikon_validation || [])
 
 const getStatusType = (status: string) => {
-  switch (status) {
-    case 'Success': return 'success'
-    case 'Crash': return 'danger'
-    case 'Timeout': return 'warning'
+  switch (String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return 'success'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return 'danger'
+    case 'TIMEOUT':
+      return 'warning'
     default: return 'info'
   }
 }

@@ -28,7 +28,7 @@ export const getStatisticsErrors = () => {
 
 // 兼容旧接口
 export const getStatistics = (query: string = '总览') => {
-    return getStatisticsOverview()
+    return api.get('/api/statistics/overview', { params: { query } })
 }
 
 // ==================== 用例接口 ====================
@@ -38,7 +38,7 @@ export const getCases = (page: number = 0, size: number = 10, status?: string) =
 }
 
 export const getRecentCases = (limit: number = 10) => {
-    return api.get('/api/cases/recent')
+    return api.get('/api/cases/recent', { params: { limit } })
 }
 
 export const getCaseById = (id: number) => {
@@ -84,6 +84,10 @@ export const getErrorPatterns = () => {
     return pythonApi.get('/api/analysis/error-patterns')
 }
 
+export const getDiversityAnalysis = () => {
+    return pythonApi.get('/api/analysis/diversity')
+}
+
 export const getSuggestions = (query: string) => {
     return pythonApi.post('/api/suggest', { query })
 }
@@ -102,8 +106,16 @@ export const analyzeFaultBoundary = (failedCaseUid: string) => {
 
 // ==================== 自动化闭环接口 ====================
 
-export const autoGenerateFromGaps = (maxPairs: number = 5) => {
-    return pythonApi.post('/api/auto-generate-from-gaps', { max_pairs: maxPairs })
+type OperatorPair = {
+    from: string
+    to: string
+}
+
+export const autoGenerateFromGaps = (maxPairs: number = 1, targetPair?: OperatorPair) => {
+    return pythonApi.post('/api/auto-generate-from-gaps', {
+        max_pairs: maxPairs,
+        target_pair: targetPair
+    })
 }
 
 export const pruneByEfficiency = (ceiThreshold: number = 0, dryRun: boolean = true) => {

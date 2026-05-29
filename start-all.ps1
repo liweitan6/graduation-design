@@ -1,8 +1,8 @@
-# DL Fuzzing System - Startup Script (PowerShell)
+# FuzzHub - Startup Script (PowerShell)
 # Usage: Right-click -> Run with PowerShell
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  DL Fuzzing System - Starting All" -ForegroundColor Cyan
+Write-Host "  FuzzHub - Starting All" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -10,6 +10,21 @@ $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Conda initialization path
 $CondaInit = "C:\Users\gjj\anaconda3\Scripts\activate.bat"
 $CondaEnv  = "dl_fuzz_env"
+
+function Wait-ForPort {
+    param([int]$Port, [string]$Name, [int]$TimeoutSeconds = 120)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+        if ($conn) {
+            Write-Host "      $Name is ready on port $Port." -ForegroundColor Green
+            return $true
+        }
+        Start-Sleep -Seconds 2
+    }
+    Write-Host "      $Name failed to listen on port $Port within $TimeoutSeconds seconds." -ForegroundColor Red
+    return $false
+}
 
 # 0. Ensure Docker containers are running
 Write-Host "[0/3] Checking Docker containers..." -ForegroundColor Yellow
@@ -31,9 +46,16 @@ if ($running -match "fuzzing_mysql") {
 
 # 1. Start Python Data Service
 Write-Host "[1/3] Starting Python Data Service (port 5000)..." -ForegroundColor Yellow
-Start-Process cmd -ArgumentList "/k", "title [Python API - 5000] && call `"$CondaInit`" && conda activate $CondaEnv && cd /d `"$ProjectRoot`" && python scripts/data_service.py"
-
-Start-Sleep -Seconds 8
+$pythonRunning = Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue
+if ($pythonRunning) {
+    Write-Host "      Python API already running on port 5000." -ForegroundColor Green
+} else {
+    Start-Process cmd -ArgumentList "/k", "title [Python API - 5000] && call `"$CondaInit`" && conda activate $CondaEnv && cd /d `"$ProjectRoot`" && set PYTHONUNBUFFERED=1 && python -u scripts/data_service.py"
+    if (-not (Wait-ForPort -Port 5000 -Name "Python API" -TimeoutSeconds 120)) {
+        Write-Host "      Check the [Python API - 5000] window for errors. If its title starts with 'Select' or '选择', press Esc to resume it." -ForegroundColor Yellow
+        exit 1
+    }
+}
 
 # 2. Start Java Backend
 Write-Host "[2/3] Starting Java Backend (port 8080)..." -ForegroundColor Yellow

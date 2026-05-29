@@ -4,8 +4,8 @@
 \section{开发环境与工具配置}
 
 本系统的开发、测试和部署涉及前端、业务后端、算法后端和底层物理执行四个层面。
-为了让系统实现说明和后续实验环境保持一致，
-本文第5章和第6章采用同一套软硬件配置来描述。
+为了让系统实现和后续实验环境保持一致，
+本章和第六章采用同一套软硬件配置。
 表\ref{tab:dev_env}列出系统实现和实验验证所使用的主要环境配置。
 
 \begin{table}[htbp]
@@ -39,15 +39,12 @@ Python & CPython & 3.11 & 算法后端运行时 \\
 \end{tabular}
 \end{table}
 
-当前实现中，各层之间的通信链路安排如下。
+当前实现中，
 前端运行在Vite开发服务器上（默认端口5173），
-默认通过Axios HTTP客户端访问Java Spring Boot后端。
-分页查询、状态筛选、详情获取和统计概览指向Java后端（端口8080）；
-向量计算、语义检索、RAG辅助诊断、Daikon候选边界条件分析、CEI分析和补盲建议由Python后端（端口5000）处理。
-\texttt{/api/search}和\texttt{/api/ask}在Java后端里保留同名入口，
-Controller通过Feign客户端调用Python路由，再把JSON结果透传回来。
-数据导入和部分分析页面在前端配置了独立的Python服务Axios实例，
-用来访问还没有经过Java代理封装的算法接口。
+通过Axios访问Java Spring Boot后端和Python FastAPI后端。
+Java后端（端口8080）主要负责结构化数据管理与部分代理转发，
+Python后端（端口5000）主要负责语义检索、候选边界条件分析、
+CEI分析和候选补盲建议等算法处理。
 
 底层物理执行环境部署在WSL2中的Ubuntu 22.04子系统里。
 这个子系统里安装了带Gcov探针的PyTorch编译版本，
@@ -60,33 +57,34 @@ Controller通过Feign客户端调用Python路由，再把JSON结果透传回来�
 
 \subsection{Python FastAPI算法后端实现}
 
-Python FastAPI算法后端主要承载语义编码、向量检索、PCA降维、Daikon候选边界条件分析和RAG相关接口。
-该服务以单文件形式组织（\texttt{data\_service.py}），
-启动时由Uvicorn ASGI服务器监听5000端口。
-服务初始化阶段建立Milvus连接、加载两个向量集合，
-并加载预训练好的Sentence-BERT编码模型；MySQL连接则在处理具体请求时按需建立。
+Python FastAPI算法后端主要负责语义编码、向量检索、PCA降维、Daikon候选边界条件分析和RAG相关接口。
+服务初始化阶段建立Milvus连接、
+加载两个向量集合及Sentence-BERT编码模型；
+MySQL连接则在处理具体请求时按需建立。
 
 该后端注册了数据导入、语义检索、统计分析、候选边界条件分析、CEI清退和补盲建议等API路由。
 表\ref{tab:api_routes}列出主要路由的方法、路径和功能摘要。
 
 \begin{table}[htbp]
 \centering
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.4}
 \caption{Python FastAPI算法后端API路由清单}
 \label{tab:api_routes}
-\begin{tabular}{llp{7.5cm}}
+\begin{tabular}{llp{7.1cm}}
 \toprule
 方法 & 路径 & 功能摘要 \\
 \midrule
-POST & \texttt{/api/ingest} & 批量导入测试用例，执行双路向量化与双库写入 \\
-POST & \texttt{/api/search} & 意图分类+双路语义检索+加权融合 \\
-POST & \texttt{/api/ask} & RAG问答，召回上下文后注入LLM \\
+POST & \texttt{/api/ingest} & 批量导入测试用例，执行双路向量化与写入 \\
+POST & \texttt{/api/search} & 语义检索并返回匹配用例 \\
+POST & \texttt{/api/ask} & RAG辅助诊断问答 \\
 GET & \texttt{/api/recent\_cases} & 获取最近入库的测试用例列表 \\
-GET & \texttt{/api/statistics} & 全局统计概览（状态分布、错误排行） \\
-GET & \texttt{/api/analysis/}\allowbreak\texttt{coverage-gaps} & 算子覆盖热力图与盲区差集计算 \\
-GET & \texttt{/api/analysis/}\allowbreak\texttt{efficiency} & CEI效能分析与散点分布 \\
+GET & \texttt{/api/statistics} & 全局统计概览 \\
+GET & \texttt{/api/analysis/}\allowbreak\texttt{coverage-gaps} & 算子覆盖热力图与覆盖缺口统计 \\
+GET & \texttt{/api/analysis/}\allowbreak\texttt{efficiency} & CEI效能统计与散点分布 \\
 GET & \texttt{/api/analysis/}\allowbreak\texttt{error-patterns} & 错误模式交叉聚类分析 \\
 GET & \texttt{/api/analysis/}\allowbreak\texttt{correlations} & 算子-错误关联矩阵 \\
-POST & \texttt{/api/analysis/}\allowbreak\texttt{fault-boundary} & Daikon候选边界条件分析与辅助诊断报告生成 \\
+POST & \texttt{/api/analysis/}\allowbreak\texttt{fault-boundary} & 候选边界条件分析与辅助诊断报告生成 \\
 POST & \texttt{/api/suggest} & 基于历史数据的变异建议生成 \\
 POST & \texttt{/api/auto-generate}\allowbreak\texttt{-from-gaps} & 覆盖盲区候选补盲测试脚本生成 \\
 POST & \texttt{/api/analysis/}\allowbreak\texttt{efficiency/prune} & CEI阈值清退预览与执行 \\
@@ -94,145 +92,69 @@ POST & \texttt{/api/analysis/}\allowbreak\texttt{efficiency/prune} & CEI阈值�
 \end{tabular}
 \end{table}
 
-下面以接口\texttt{/api/analysis/}\allowbreak\texttt{fault-boundary}
-为例，说明请求体和响应体的JSON结构设计。
+语义检索接口\texttt{/api/search}的请求体以\texttt{query}字段为核心，
+用于接收自然语言查询文本。
+请求模型还包含\texttt{top\_k}、\texttt{search\_mode}、
+\texttt{structure\_weight}和\texttt{log\_weight}等字段，
+用于描述检索模式和结构向量与日志向量的融合权重；
+响应体包含\texttt{total}、\texttt{results}、\texttt{query}、
+\texttt{search\_mode}和\texttt{query\_intent}等字段，
+其中\texttt{results}数组保存匹配用例及其相似度得分。
 
-该接口的请求体只包含一个字段：
-
-\texttt{\{"failed\_case\_uid": "<string>"\}}
-
-其中\texttt{failed\_case\_uid}是目标崩溃用例的全局唯一标识。
-接口内部执行以下步骤：
-（1）从MySQL查询目标用例的完整元数据与向量主键；
-（2）以向量主键在Milvus中提取结构特征向量；
-（3）在Milvus中执行余弦相似度检索，召回20个最近邻样本；
-（4）将近邻样本按执行状态分为健康组（最多10个）与崩溃组（最多10个）；
-（5）对健康组与崩溃组执行参数展平与张量Diff对比；
-（6）调用Daikon候选边界条件分析模块提取候选约束；
-（7）根据候选约束构造满足约束与不满足约束的轻量样例，
-并通过PyTorch算子级执行结果判断约束是否具有参考价值；
-（8）将Diff结果、候选约束与验证报告共同注入LLM提示词，
-生成面向开发者的辅助诊断报告。
-
-响应体JSON包含六个顶层字段：
-
-（1）\texttt{failed\_case}对象。
-包含\texttt{uid}（崩溃用例标识符，字符串类型）
-与\texttt{error}（原始错误文本，字符串类型）两个子字段。
-
-（2）\texttt{successful\_case}对象。
-包含\texttt{uid}（最近邻健康用例标识符）一个子字段。
-
-（3）\texttt{diff}对象。
-包含\texttt{successful\_values}与\texttt{failed\_values}两个子字段，
-均为键值对字典，键为展平后的参数路径（如\texttt{layers.conv1.}%
-\allowbreak\texttt{kernel\_size}），
-值为该参数在健康用例和崩溃用例中的取值。
-该字段供前端渲染参数对比视图。
-
-（4）\texttt{daikon\_violations}数组。
-每个元素为一条字符串形式的候选约束表达式，
-例如\texttt{"layers.conv1.kernel\_size}%
-\allowbreak\texttt{ + 2 * layers.conv1.padding[0]}%
-\allowbreak\texttt{ >= layers.conv1.input\_size"}。
-数组按变量数量降序排列，多变量约束排在前面。
-
-（5）\texttt{daikon\_validation}数组。
-每个元素对应一条候选约束，
-包含\texttt{constraint}、\texttt{positive\_cases}、
-\texttt{negative\_cases}与\texttt{is\_validated}四类信息。
-其中\texttt{positive\_cases}记录满足约束式的生成样例，
-\texttt{negative\_cases}记录违反约束式的生成样例；
-每个样例进一步包含被变异的参数路径、变异后的参数值、
-约束求值结果、实际执行状态以及报错摘要。
-若所有正样例均能成功执行，且所有反样例均触发运行时错误，
-则\texttt{is\_validated}字段置为真，
-表示该约束在当前样本和轻量级验证样例上具有较高可信度。
-
-（6）\texttt{boundary\_rule}字符串。
-LLM基于上述上下文生成的辅助诊断报告内容。
-提示词中包含\texttt{daikon\_validation}的执行验证结论，
-使生成文本围绕候选边界条件展开，
-减少将偶然相关关系误解释为源码级结论的情况。
-
-数据导入接口\texttt{/api/ingest}采用POST方法，
-请求体为TestCase对象的JSON数组。
-每个TestCase对象包含以下字段：
-\texttt{case\_uid}（字符串，全局唯一标识）、
-\texttt{status}（字符串，执行状态枚举）、
-\texttt{edge\_coverage}（整数，边覆盖数）、
-\texttt{execution\_time}（浮点数，执行耗时秒）、
-\texttt{error\_message}（字符串或空值，错误文本）、
-\texttt{model\_structure}（嵌套字典，包含\texttt{layers}列表、
-\texttt{connections}连接链、\texttt{depth}深度与\texttt{operators}算子列表四个键）。
-响应体包含\texttt{success}（成功导入数量）、
-\texttt{ids}（结构向量主键列表）与\texttt{message}（状态描述）三个字段。
-
-这个接口体现了第4章所述的双路向量化设计：
-服务根据\texttt{model\_structure}构造结构描述文本，
-根据\texttt{error\_message}或成功占位文本构造日志描述文本，
-再分别生成结构向量和日志向量。
-结构向量写入\texttt{fuzzing\_structure}集合，
-日志向量写入\texttt{fuzzing\_logs}集合。
-当前Milvus集合只保存自增主键\texttt{id}和向量字段\texttt{embedding}，
-\texttt{case\_uid}保存在MySQL表中；
-跨库关联依靠\texttt{vector\_id}、
-\texttt{parameters.structure\_vector\_id}和
-\texttt{parameters.log\_vector\_id}。
-检索时，Milvus先返回相似向量主键，
-Python后端再用这些主键从MySQL反查完整元数据。
-这一实现没有引入分布式事务，主要通过确定写入顺序和MySQL唯一键幂等写入来减少双库不一致的情况。
-
-语义检索接口\texttt{/api/search}的请求体只包含一个字段
-\texttt{query}（用户自然语言查询文本）。
-接口内部先对查询文本作规则化的意图分类，
-判断用户意图更偏向结构检索、日志检索还是复合检索，
-再据此调整结构向量和日志向量的融合权重。
-响应体包含\texttt{results}数组、\texttt{total}、\texttt{query}、
-\texttt{search\_mode}与\texttt{query\_intent}字段。
-\texttt{results}数组中每个元素包含用例的主要元数据、
-相似度得分\texttt{similarity\_score}以及匹配来源\texttt{match\_source}；
-\texttt{query\_intent}记录后端识别到的查询类型，
-供前端决定结果说明和提示信息的展示方式。
+候选边界条件分析接口\texttt{/api/analysis/fault-boundary}的请求体包含
+\texttt{failed\_case\_uid}字段，
+用于指定待分析的崩溃用例。
+响应体包含\texttt{failed\_case}、\texttt{successful\_case}、
+\texttt{diff}、\texttt{batch\_context}、\texttt{daikon\_violations}、
+\texttt{daikon\_validation}和\texttt{boundary\_rule}等字段。
+其中，\texttt{diff}用于展示参数差异，
+\texttt{daikon\_validation}保存待人工验证的正反样例，
+\texttt{boundary\_rule}保存辅助诊断报告。
 
 \subsection{Java Spring Boot业务后端实现}
 
 Java Spring Boot后端承担基础业务数据管理和前端请求组织功能，
-监听8080端口，通过Spring Data JPA与MySQL交互。
-这一后端的主要职责包括三项：
-用例的分页查询和条件筛选、统计数据的聚合计算，
-以及对Python后端中语义检索和RAG辅助诊断接口的代理转发。
+监听8080端口，并通过Spring Data JPA与MySQL交互。
+该后端提供的主要API路由如表\ref{tab:java_api_routes}所示。
 
-用例分页查询接口\texttt{/api/cases}支持三个查询参数：
-\texttt{page}（页码，默认0）、\texttt{size}（每页数量，默认10）、
-\texttt{status}（可选的状态过滤条件）。
-Repository层把这些参数转换成分页查询。
-当\texttt{status}参数非空时，后端调用\texttt{findByStatus}按状态过滤；
-否则调用\texttt{findAll}返回全量分页结果。
-响应体采用Spring Data风格的分页封装，
-包含\texttt{content}（当前页用例数组）、\texttt{totalElements}（总记录数）、
-\texttt{totalPages}（总页数）与\texttt{number}（当前页码）四个字段。
+\begin{table}[htbp]
+\centering
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.25}
+\caption{Java Spring Boot业务后端API路由清单}
+\label{tab:java_api_routes}
+\begin{tabular}{llp{7.1cm}}
+\toprule
+方法 & 路径 & 功能摘要 \\
+\midrule
+GET & \texttt{/api/cases} & 分页查询测试用例，可按状态过滤 \\
+GET & \texttt{/api/cases/recent} & 获取最近测试用例，用于运行总览展示 \\
+GET & \texttt{/api/cases/\{id\}} & 按物理主键查询单个测试用例 \\
+GET & \texttt{/api/cases/uid/}\allowbreak\texttt{\{caseUid\}} & 按业务标识符查询单个测试用例 \\
+GET & \texttt{/api/statistics/}\allowbreak\texttt{overview} & 返回总数、崩溃数、平均耗时和平均覆盖数据 \\
+GET & \texttt{/api/statistics/}\allowbreak\texttt{status} & 返回不同状态的用例数量 \\
+GET & \texttt{/api/statistics/}\allowbreak\texttt{errors} & 返回错误类型排行 \\
+POST & \texttt{/api/search} & 代理语义检索请求到Python服务 \\
+POST & \texttt{/api/ask} & 代理RAG辅助诊断请求到Python服务 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-统计接口组包含三条路由：
+其中，统计接口组包含三条路由：
 \texttt{/api/statistics/overview}返回用例总数、崩溃率和平均执行耗时；
-\texttt{/api/statistics/status}返回各状态类别的用例计数；
-\texttt{/api/statistics/errors}返回错误类型排行榜。
-这三条路由中，状态分布和错误类型统计通过Repository中的原生SQL聚合查询完成，
-总览统计算出用例总数、成功数、失败数、平均执行耗时和平均覆盖贡献数据，
-再把结果封装为前端图表组件可以直接消费的JSON格式。
+\texttt{/api/statistics/status}返回各状态类别的用例数；
+\texttt{/api/statistics/errors}返回错误类型。
+这些结果会被封装为前端图表组件可以直接使用的JSON格式。
 
-代理转发方式基于Spring Cloud OpenFeign组件。
-Java后端在Controller层注册和Python后端同名的路由映射
-（如\texttt{/api/search}、\texttt{/api/ask}）。
-当请求到达时，Controller把请求体交给\texttt{PythonServiceClient}，
-由Feign客户端转发到配置项\texttt{python-service.url}对应的Python服务，
-再把Python后端的响应体原样返回给前端。
-前端Axios超时时间设置为60秒，以适应LLM推理可能产生的较长延迟。
+对语义检索和RAG辅助诊断请求，
+Java后端通过Spring Cloud OpenFeign转发到配置项
+\texttt{python-service.url}对应的Python服务，
+再把响应体返回给前端。
 
 \subsection{数据库表结构与向量集合详细设计}
 
-MySQL侧主要表\texttt{test\_case\_metadata}
-承载测试用例结构化元数据。
+表\texttt{test\_case\_metadata}
+负责存储测试用例结构化元数据。
 表\ref{tab:mysql_schema}列出了该表的完整字段设计。
 
 \begin{table}[htbp]
@@ -257,11 +179,10 @@ MySQL侧主要表\texttt{test\_case\_metadata}
 \end{tabular}
 \end{table}
 
-该表在\texttt{case\_uid}字段上建立唯一索引，
+在\texttt{case\_uid}字段上建立唯一索引，
 通过\texttt{ON DUPLICATE KEY UPDATE}语义在重复导入时更新已有记录。
-\texttt{parameters}字段采用MySQL 8.0原生的JSON类型，
-保存结构比较灵活的扩展信息。
-这个字段里保存模型结构字典、PCA降维坐标和Milvus双向量主键等扩展信息。
+\texttt{parameters}字段采用JSON类型，
+保存模型结构字典、PCA降维坐标和Milvus双向量主键等扩展信息。
 其中Milvus双向量主键包括\texttt{structure\_vector\_id}和\texttt{log\_vector\_id}。
 
 Milvus侧维护两个独立的向量集合，Schema配置相同。
@@ -288,447 +209,204 @@ Milvus侧维护两个独立的向量集合，Schema配置相同。
 \end{table}
 
 两个集合在服务启动时执行\texttt{collection.load()}操作，
-把索引结构和向量数据加载到Milvus的查询节点内存中。
-这一操作用来减少检索请求触发额外加载的开销，
-实际延迟受数据规模、Milvus部署方式和硬件资源的影响。
+把索引结构和向量数据加载到Milvus的查询节点内存中，
+从而降低检索请求触发额外加载的开销。
 
-跨库数据关联通过写入顺序和主键回填共同维护。
-数据接入阶段按“先Milvus后MySQL”的写入顺序执行：
-服务先把双路向量分别插入两个Milvus集合并拿到自动生成的主键，
-再把结构向量主键写入\texttt{vector\_id}字段，
-并把\texttt{structure\_vector\_id}和\texttt{log\_vector\_id}
+跨库数据关联通过写入顺序和主键回填共同维护：
+结构向量主键写入\texttt{vector\_id}字段，
+\texttt{structure\_vector\_id}和\texttt{log\_vector\_id}
 写入\texttt{parameters} JSON字段。
-MySQL侧依靠\texttt{case\_uid}唯一索引和
-\texttt{ON DUPLICATE KEY UPDATE}语义在重复导入时更新已有记录。
-CEI清退接口在执行模式下先按阈值筛出覆盖收益相对较低的记录，
-再从MySQL中读取\texttt{vector\_id}、
-\texttt{parameters.structure\_vector\_id}
-和\texttt{parameters.log\_vector\_id}；
-随后调用Milvus删除两个集合中的对应向量，
-再执行\texttt{DELETE FROM test\_case\_metadata}移除结构化元数据。
-由于MySQL和Milvus仍然不共享事务管理器，
-本文把这一流程描述为级联清退和最终一致性维护，
-而不是严格意义上的分布式事务保证。
+清退时，系统先删除Milvus中的对应向量，
+再删除MySQL中的元数据记录。
 
 \section{前端界面实现与功能展示}
 
-本系统前端基于Vue 3组合式API（Composition API）和TypeScript构建，
-使用Element Plus组件库组织表格、表单、抽屉和弹窗等控件。
-整体界面采用深色背景（背景色\texttt{\#0f172a}）配合靖蓝主色调（\texttt{\#6366f1}），
-主要用卡片、表格和弹窗来组织信息。
-多数页面组件在\texttt{onMounted}生命周期钩子中触发初始数据拉取，
-用户通过筛选、搜索、按钮点击或打开抽屉继续发起HTTP请求。
-前端分别封装Java后端和Python后端的Axios实例：
-用例管理和统计接口默认访问8080端口，
-数据导入、分析和补盲建议等算法接口访问5000端口。
+本系统前端采用Vue 3和TypeScript实现，
+界面组件主要基于Element Plus搭建。
+页面整体以深色风格为主，
+通过卡片、表格、弹窗等形式展示测试用例、统计结果和分析信息。
+在实现上，前端按页面功能发起HTTP请求，
+其中用例管理和基础统计主要访问Java后端，
+数据导入、故障分析和补盲建议等功能则调用Python后端接口。
 
-\subsection{系统总览仪表盘}
+\subsection{FuzzHub运行总览}
 
-系统总览仪表盘（Dashboard）是用户进入系统后的首屏，
-用来查看全局测试状态的聚合结果。
-页面顶部排列四张统计卡片，展示累计用例数、通过率、崩溃总数和平均执行耗时。
-卡片数据通过调用\texttt{/api/statistics/overview}接口获取，
-接口返回的字段直接绑定到卡片的数值插槽上。
-
-页面中部为测试状态分布环形图。
-该图基于\texttt{vue-echarts}组件封装，
-在\texttt{onMounted}钩子中调用\texttt{getStatisticsStatus()}函数拉取状态分布数据。
-接口返回的数组格式为\texttt{[\{name: "Success", value: N\}, ...]}，
-该数组赋值给ECharts配置对象的\texttt{series[0].data}属性。
-ECharts内部基于Canvas 2D上下文渲染环形区域，
-每个弧段的弧度由\texttt{value}字段占总和的比例决定。
-环形图以通过与失败两种状态着色，支持鼠标悬停高亮。
-
-页面底部是最近测试用例列表。
-通过\texttt{getRecentCases(10)}拉取最近记录，
-以数据表格形式展示用例ID、执行状态标签、边覆盖数、耗时和创建时间。
-状态标签通过Element Plus的\texttt{el-tag}组件渲染，
-不同状态对应不同的颜色主题（Success为绿色、Crash为红色、Timeout为橙色）。
+FuzzHub运行总览（Dashboard）是用户进入系统后的首屏，
+主要用于查看测试任务的整体情况。
+页面上方用统计卡片展示累计用例数、通过率、崩溃总数和平均执行耗时，
+中部展示测试状态分布，
+底部列出最近产生的测试用例。
+这些数据主要由后端统计接口和最近用例查询接口提供。
+通过该页面，用户可以先对当前测试集的规模、失败比例和近期执行情况有一个整体认识。
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.75\textwidth]{figure/ui_dashboard.png}
-\caption{系统总览仪表盘界面}
+\caption{FuzzHub运行总览界面}
 \label{fig:ui_dashboard}
 \end{figure}
 
-\subsection{用例管理与语义检索界面}
+\subsection{用例管理界面}
 
-用例管理页面（Cases）面向分页浏览、状态筛选、关键词过滤和详情查看操作。
-页面顶部是筛选工具栏，包含状态下拉选择器（\texttt{el-select}）
-和关键词输入框（\texttt{el-input}）。
-用户选择状态筛选条件后，组件通过下拉框的\texttt{change}事件捕获变化，
-再重新调用\texttt{getCases(page, size, status)}拉取对应数据。
-关键词输入框用来在当前分页结果中按\texttt{caseUid}过滤，
-用户也可以点击“刷新列表”重新请求数据。
-
-主体区域是分页数据表格（\texttt{el-table}），
-列包括case\_uid、状态、边覆盖数、执行耗时和创建时间。
-表格底部挂载\texttt{el-pagination}分页组件，
-通过\texttt{current-change}事件触发翻页请求。
-每次翻页时组件重新调用后端接口，再把\texttt{content}数组绑定到表格的\texttt{data}属性上。
-用户点击任一表格行后，页面会打开\texttt{CaseDetailDrawer}抽屉组件，
-展示基础信息、错误堆栈、模型结构、输入参数和完整运行日志。
-对崩溃或超时用例，抽屉打开时会调用\texttt{analyzeCase(caseUid)}接口，
-把故障辅助定位结果渲染到拓扑连接图中，并标注候选算子和其置信度。
-
-语义检索页面（Search）保留自然语言查询入口。
-页面中央是搜索输入框，用户输入自然语言描述后点击搜索按钮，
-前端会调用\texttt{semanticSearch(query)}发起POST请求。
-搜索结果以Top-N参考用例卡片的形式展示，包含主要元数据和相似度百分比。
-相似度数值由后端返回的相似度字段换算得到，
-配合边覆盖数一同展示。
-用户点击结果卡片后会进入详情抽屉，
-查看原始日志、模型结构和故障辅助定位信息。
-
-页面上方集成了RAG分析面板。
-用户输入自然语言描述后点击“执行辅助分析”按钮，前端会调用\texttt{askRAG(query)}接口。
-接口响应中的\texttt{answer}字段以Markdown格式返回，
-前端通过\texttt{v-html}指令配合简单的Markdown格式化逻辑，
-把辅助诊断报告内容渲染为包含相似案例、可疑条件和排查建议的富文本卡片。
-搜索框下方提供多个预置的查询模板标签，方便用户快速发起常见的诊断问题。
+用例管理页面（Cases）用于浏览和筛选测试用例。
+用户可以按照执行状态、用例编号等条件查看记录，
+也可以进入单条用例的详情页面。
+表格中主要展示用例ID、执行状态、覆盖数据、运行耗时和错误摘要等信息。
+该页面承担了测试数据入口的作用，
+便于用户从大量用例中快速找到需要进一步分析的失败样例。
+测试用例管理界面如图\ref{fig:ui_sample_manage}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.75\textwidth]{figure/ui_search.png}
-\caption{用例管理与语义检索界面}
-\label{fig:ui_search}
+\includegraphics[width=0.82\textwidth]{figure/ui_sample_manage.png}
+\caption{测试用例管理界面}
+\label{fig:ui_sample_manage}
+\end{figure}
+\FloatBarrier
+
+\subsection{用例详情故障辅助定位界面}
+
+用例详情界面用于展示单条测试用例的完整信息。
+除用例ID、执行状态、运行耗时和覆盖数据外，
+页面还会展示错误日志、模型结构和输入参数等内容。
+对于失败用例，前端会调用Python后端分析接口，
+给出错误类别、候选算子节点和相关说明，
+帮助用户缩小排查范围。
+
+该界面还提供候选边界条件分析入口。
+用户可以针对某个失败用例发起候选边界条件分析，
+查看成功用例与失败用例之间的参数差异，
+并生成满足或不满足候选约束的待人工验证样例。
+用例详情故障辅助定位界面如图\ref{fig:ui_fault_location}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figure/ui_fault_location.png}
+\caption{用例详情故障辅助定位界面}
+\label{fig:ui_fault_location}
+\end{figure}
+\FloatBarrier
+
+\subsection{AI智能分析助手界面}
+
+AI智能分析助手页面用于提供自然语言查询和辅助分析功能。
+用户输入问题后，系统会结合历史测试用例进行语义检索，
+并生成辅助诊断报告。
+页面同时展示相似用例、错误摘要和候选变异建议，
+方便用户从已有数据中寻找参考。
+
+该页面主要调用语义问答接口和建议生成接口。
+其中，前者用于组织历史相似用例和当前问题上下文，
+后者用于给出后续测试方向。
+用于辅助开发者进行故障分析和后续测试。
+AI智能分析助手界面如图\ref{fig:ui_ai_assistance}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{figure/ui_ai_assistance.png}
+\caption{AI智能分析助手界面}
+\label{fig:ui_ai_assistance}
+\end{figure}
+\FloatBarrier
+
+\subsection{故障关联分析界面}
+
+故障关联分析页面（Correlations）用于从整体上查看故障与算子的关系。
+页面根据后端返回的故障关联数据，
+展示故障用例数量、高风险算子关联和常见错误类型。
+中部表格按算子和算子组合汇总故障情况，
+便于观察问题是否集中在某些算子或特定连接关系上。
+页面还列出部分个案级故障记录，
+用户可以从中选择失败用例继续进行边界对比分析。
+“故障关联分析”页面如图\ref{fig:ui_fault_analysis}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{figure/ui_fault_analysis.png}
+\caption{故障关联分析}
+\label{fig:ui_fault_analysis}
 \end{figure}
 
-\subsection{候选边界条件对比与Daikon分析展示界面}
-
-关联分析页面（Correlations）承担算子错误关联、故障辅助定位聚合和候选边界条件展示。
-页面调用\texttt{getCorrelations()}接口获取错误用例统计结果，
-再在表格中列出崩溃用例。
-用户可以输入用例ID关键词过滤表格，
-再点击“边界对比”按钮调用\texttt{analyzeFaultBoundary}\allowbreak\texttt{(failedCaseUid)}，
-在弹窗中查看Daikon候选边界条件分析的结果。
-
-请求返回后，页面呈现三个功能区域。
-第一区域是双侧参数对比视图。
-左侧渲染崩溃用例的展平参数，
-右侧渲染最近邻健康用例的展平参数。
-两侧相同键的行水平对齐，数值存在差异的行以红色高亮标注。
-对比数据来源于响应体中的\texttt{diff.failed\_values}
-和\texttt{diff.successful\_values}两个字典。
-前端通过JavaScript的\texttt{Object.keys()}提取键集合并排序，
-逐键比对数值是否一致，以决定是否施加高亮样式类。
-
-第二区域是候选约束展示面板。
-这个面板以标签列表的形式渲染响应体中\texttt{daikon\_violations}数组的每个元素。
-每个标签展示一条候选数学约束，
-例如卷积输入尺寸、padding和kernel size之间的关系。
-后端返回\texttt{daikon\_validation}数组时，
-详情抽屉展示正反样例的轻量执行结果，
-用\texttt{is\_validated}提示这个候选约束是否通过当前的验证样例。
-
-第三区域是LLM辅助诊断报告展示。
-这个区域渲染响应体中\texttt{boundary\_rule}字段的文本内容，
-以卡片形式呈现并配以诊断标签。
-这一文本用来解释候选边界条件及其影响，
-不直接替代人工复现和源码级确认。
+边界对比弹窗用于展示单个失败用例与相近成功用例之间的差异。
+弹窗中同时展示参数差分、Daikon候选约束、验证样例和辅助诊断报告。
+其中，候选约束用于提示可能存在的参数边界，
+验证样例则分为满足约束和违反约束两类，
+作为后续补充测试和验证边界条件的参考。
+界面会标记这些样例仍处于待人工验证状态，
+避免把生成结果直接解释为已经执行通过或失败。
+底部的辅助诊断报告用于解释候选边界条件。
+故障临界差分对比弹窗如图\ref{fig:ui_daikon}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.75\textwidth]{figure/ui_daikon.png}
-\caption{候选边界条件对比与Daikon分析展示界面}
+\includegraphics[width=0.82\textwidth]{figure/ui_daikon.png}
+\caption{故障临界差分对比}
 \label{fig:ui_daikon}
 \end{figure}
+\FloatBarrier
 
-\subsection{算子覆盖热力图与候选补盲界面}
+\subsection{算子覆盖缺口分析界面}
 
-覆盖率分析页面（Coverage）展示算子组合覆盖状态的全局视图。
-页面主体是算子对热力图，基于ECharts的\texttt{heatmap}系列类型渲染。
-在\texttt{onMounted}钩子中，组件调用\texttt{getCoverageGaps()}接口，
-接口返回\texttt{heatmap\_data}、\texttt{heatmap\_operators}、
-\texttt{operator\_coverage}和\texttt{uncovered\_pairs}等字段。
-
-热力图的X轴和Y轴都是算子类型名称，
-每个格子的颜色深度由该算子对在测试集中出现的频次决定。
-频次为零的格子（也就是盲区）以特殊的红色虚线边框标注，
-颜色映射通过ECharts的\texttt{visualMap}组件配置，
-色域从深色背景（频次0）过渡到紫蓝色（频次最高）。
-
-热力图下方展示盲区列表面板。
-每条盲区记录包含源算子和目标算子。
-面板右上角设置“生成候选补盲测试脚本”按钮，
-用户点击后前端会调用\texttt{autoGenerateFromGaps(maxPairs)}接口。
-接口根据未覆盖的算子对构造提示词，再调用LLM，
-返回候选补盲测试脚本文本。
-前端把返回内容以代码块的形式渲染在弹出对话框中，
-并展示本次使用的盲区算子对。
-当前界面主要完成候选补盲测试脚本的展示，
-脚本是否执行、是否入库仍然需要后续检查和测试。
+算子覆盖缺口分析页面用于查看当前测试集对算子和算子组合的覆盖情况。
+页面通过覆盖缺口分析接口获取统计结果，
+并以统计卡片、热力图和表格的形式展示。
+用户可以看到哪些算子已经被测试覆盖，
+哪些算子对在现有用例中还没有出现。
+这部分信息为后续补充测试提供了直接依据。
+算子覆盖缺口分析界面如图\ref{fig:ui_coverage}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.75\textwidth]{figure/ui_coverage_heatmap.png}
-\caption{算子覆盖热力图界面}
-\label{fig:ui_coverage_heatmap}
+\includegraphics[width=0.85\textwidth]{figure/ui_coverage.png}
+\caption{算子覆盖缺口分析界面}
+\label{fig:ui_coverage}
 \end{figure}
 
+对于未覆盖的算子组合，页面提供候选补盲测试脚本生成入口。
+用户选择目标算子对后，
+前端调用候选补盲生成接口生成候选脚本。
+生成结果会在弹窗中展示，
+用户可以据此检查脚本是否可运行、是否具有覆盖贡献以及是否适合后续入库。
+AI定向补盲生成结果界面如图\ref{fig:ui_coverage_blind}所示。
+
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.75\textwidth]{figure/ui_coverage_blind.png}
-\caption{覆盖盲区热力图与候选补盲界面}
+\includegraphics[width=0.82\textwidth]{figure/ui_coverage_blind.png}
+\caption{AI定向补盲生成结果界面}
 \label{fig:ui_coverage_blind}
 \end{figure}
+\FloatBarrier
 
-\subsection{CEI效能分析与清退界面}
+\subsection{测试效能评估界面}
 
-效能分析页面（Efficiency）用来展示CEI指标并触发阈值清退操作。
-页面主体是CEI散点图，基于ECharts的\texttt{scatter}系列类型渲染。
-在\texttt{onMounted}钩子中调用\texttt{getEfficiencyAnalysis()}接口，
-接口返回每个用例的\texttt{case\_uid}、\texttt{cei}、
-\texttt{edge\_coverage}、\texttt{complexity}和\texttt{execution\_time}字段。
+测试效能评估页面用于展示CEI指标、用例效能排行和清退方案，
+帮助用户区分优先保留用例和候选清退用例。
+用户可以先预览阈值清退结果，确认后再执行处理。
+测试效能评估界面如图\ref{fig:ui_efficiency_scatter}所示。
 
-气泡图的X轴是用例复杂度（算子加权总和），Y轴是边覆盖数，
-每个气泡的大小由CEI值映射（CEI越高气泡越大）。
-页面顶部四张统计卡片分别展示总用例数、平均CEI、最高CEI和最低CEI。
-鼠标悬停气泡时，\texttt{tooltip}组件展示该用例的完整信息。
-
-气泡图下方分列高CEI用例排行和低CEI用例排行两张对照表格，
-每张表格包含用例ID、CEI得分、覆盖贡献数据、复杂度和执行状态列，
-帮助用户对比两端用例的特征差异。
-
-清退控制台作为独立的面板展示。
-接口返回CEI阈值（默认为中位数的50\%），
-并展示四项主要指标卡片：CEI阈值、待清退用例数、保留用例数和覆盖率保留比。
-面板同时对比展示清退前后的平均CEI变化。
-控制台右上角提供“预览清退方案”和“执行清退”两个操作按钮：
-前者调用\texttt{pruneByEfficiency}\allowbreak\texttt{(threshold, true)}，
-接口返回将被清退的用例列表但不实际执行删除；
-后者把\texttt{dry\_run}参数设为\texttt{false}，触发实际的清退流程。
-当前执行模式会结合\texttt{parameters.structure\_vector\_id}和
-\texttt{parameters.log\_vector\_id}删除Milvus中对应的向量，
-再删除MySQL中覆盖收益相对较低的用例记录，返回实际删除数量。
-这一流程属于基于向量主键的级联清退和最终一致性维护。
-删除完成后前端重新拉取气泡图数据，
-用户可以通过平均CEI和覆盖保留比例判断清退影响。
-
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.75\textwidth]{figure/ui_efficiency_scatter.png}
-\caption{CEI效能散点分析界面}
+\includegraphics[width=0.80\textwidth]{figure/ui_efficiency_scatter.png}
+\caption{测试效能评估界面}
 \label{fig:ui_efficiency_scatter}
 \end{figure}
+\FloatBarrier
+
+\subsection{测试用例多样性分布界面}
+
+多样性分析页面（Diversity）用于展示测试用例在二维PCA投影空间中的分布情况。
+页面通过散点图展示不同执行状态的样例位置，
+帮助用户从整体上观察测试集是否过于集中。
+如果大量样例聚集在少数区域，
+说明当前测试数据可能偏向少量模型结构或错误模式；
+如果部分区域较稀疏，
+则可以作为后续补充测试和构造候选补盲测试脚本的参考。
+测试用例多样性分布界面如图\ref{fig:ui_diversity}所示。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.75\textwidth]{figure/ui_efficiency_prune.png}
-\caption{CEI清退控制台界面}
-\label{fig:ui_efficiency_prune}
-\end{figure}
-
-\subsection{PCA多样性聚类监控界面}
-
-多样性分析页面（Diversity）展示测试集在二维PCA投影空间中的分布。
-这一页面使用ECharts的\texttt{scatter}系列类型渲染散点图，
-坐标来源于数据接入阶段写入\texttt{parameters}字段的
-\texttt{vis\_x}和\texttt{vis\_y}。
-当前前端在\texttt{onMounted}钩子中初始化图表并加载可视化数据；
-如果接入真实的全量接口，应该从MySQL读取PCA坐标和执行状态。
-现有页面没有使用三维扩展渲染组件，
-因此本文只按ECharts二维散点图来描述其实现。
-
-接口或数据源返回的JSON数组中，每个元素包含\texttt{vis\_x}和\texttt{vis\_y}坐标，
-以及\texttt{status}执行状态字段。
-前端把数据按状态映射为不同颜色的散点系列：
-成功用例为绿色点，崩溃用例为红色高亮点，超时用例为橙黄色点。
-
-散点图支持点击查看单个点的详情。
-用户点击某个散点后，右侧详情面板会展示该用例的\texttt{case\_uid}、
-执行状态、边覆盖数、错误信息和参数JSON。
-页面顶部还提供状态筛选下拉框，
-用户可以只查看Success、Crash或Timeout中的某一类样本。
-稀疏的区域对应可能还没有被充分覆盖的模型结构空间，
-可以作为后续补盲策略的参考入口。
-
-散点图下方展示两个分析面板。
-左侧是“聚集情况说明”面板，用文字说明PCA散点可以用来观察测试用例在语义空间中的聚集情况；
-右侧是“代表性特征”面板，以标签形式展示代表性的特征关键词（如Conv2d、OOM、Shape Mismatch等），
-帮助用户快速判断当前测试集可能集中的算子或错误类型。
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.75\textwidth]{figure/ui_diversity.png}
-\caption{PCA多样性聚类监控界面}
+\includegraphics[width=0.83\textwidth]{figure/ui_diversity.png}
+\caption{测试用例多样性分布}
 \label{fig:ui_diversity}
 \end{figure}
-
-\section{底层物理执行隔离实现}
-
-本节描述物理层面的测试执行基础设施。
-物理执行隔离层运行在WSL2 Ubuntu 22.04子系统中，
-主要任务是：在带覆盖率探针的PyTorch编译版本上执行测试脚本，
-采集C++层的分支命中数据，
-通过进程级的执行隔离减少测试脚本崩溃对主服务的影响。
-
-\subsection{Gcov/LCOV探针的编译挂载流程}
-
-Gcov探针的工作原理基于编译期插桩和运行期计数两个阶段的协作。
-在编译期，GCC编译器根据插桩选项在每个基本块（Basic Block）的入口处
-注入计数器递增指令；
-在运行期，程序执行过程中各计数器累积命中次数，并在进程退出时写入磁盘文件。
-
-要对PyTorch底层C++源码启用Gcov插桩，
-需要在WSL环境中修改编译选项。
-具体方式是设置以下环境变量后重新触发CMake配置和编译：
-
-\begin{verbatim}
-export CXXFLAGS="-fprofile-arcs -ftest-coverage"
-export LDFLAGS="-lgcov --coverage"
-\end{verbatim}
-
-其中\texttt{-fprofile-arcs}指令让编译器在每个分支跳转点插入弧计数器，
-\texttt{-ftest-coverage}指令让编译器为每个编译单元生成\texttt{.gcno}文件。
-链接阶段的\texttt{-lgcov}参数把Gcov运行时库静态链接到目标二进制中。
-
-编译完成之后，每个\texttt{.cpp}源文件会对应产生一个\texttt{.gcno}文件。
-这个文件记录源码的控制流图拓扑，
-包括基本块编号、块间的有向边关系和源码行号映射。
-\texttt{.gcno}文件在编译时一次性生成，之后不再变化。
-
-当带探针的PyTorch库被测试脚本加载并执行之后，
-运行时库会在进程正常退出（或收到\texttt{SIGTERM}信号）时，
-把每个弧计数器的累积值写入和\texttt{.gcno}同目录的\texttt{.gcda}文件。
-\texttt{.gcda}文件记录每条边在本次执行中被穿越的次数。
-多次执行产生的\texttt{.gcda}数据会累积叠加。
-
-覆盖率数据的提取通过LCOV命令行工具完成。
-执行流程分为三步：
-
-（1）基线采集。在任何测试执行之前，运行如下命令：
-\begin{flushleft}
-\small\ttfamily
-lcov --capture --initial\\
-\hspace*{1em}--directory /path/to/pytorch/build\\
-\hspace*{1em}--output-file baseline.info
-\end{flushleft}
-生成零计数基线文件。
-
-（2）增量采集。测试脚本执行完毕后，运行如下命令：
-\begin{flushleft}
-\small\ttfamily
-lcov --capture\\
-\hspace*{1em}--directory /path/to/pytorch/build\\
-\hspace*{1em}--output-file test.info
-\end{flushleft}
-采集含有命中计数的覆盖率快照。
-
-（3）差分计算。通过
-\begin{flushleft}
-\small\ttfamily
-lcov --remove test.info '/usr/*'\\
-\hspace*{1em}--output-file filtered.info
-\end{flushleft}
-过滤系统头文件贡献后，
-再利用如下命令：
-\begin{flushleft}
-\small\ttfamily
-genhtml filtered.info\\
-\hspace*{1em}--output-directory coverage\_html
-\end{flushleft}
-生成可视化HTML报告。
-
-LCOV报告中的覆盖统计为本系统的\texttt{edge\_coverage}字段提供物理来源。
-在实现中，Python侧解析\texttt{.info}文件后提取可以用于度量覆盖贡献的数据，
-再以整数形式回写到MySQL对应的用例记录中。
-这一字段在CEI模型中对应$E_{\text{edge}}$，
-用来表示单个测试用例贡献的覆盖规模。
-
-\subsection{基于multiprocessing.spawn的隔离执行模块}
-
-测试脚本的执行环境主要会遇到两类异常情况：
-一是脚本可能触发底层C++算子的段错误（Segmentation Fault），
-导致整个进程地址空间被操作系统回收；
-二是PyTorch内部依赖的OpenMP线程池在\texttt{fork}模式下
-可能继承父进程的锁状态，形成无法恢复的死锁。
-如果测试脚本和主Web服务共享进程空间，上述情况可能导致后端服务异常退出。
-
-为了减少上述影响，本系统采用\texttt{multiprocessing}模块的\texttt{spawn}启动方式。
-和默认的\texttt{fork}模式不同，\texttt{spawn}不复制父进程的内存页表，
-而是启动一个全新的Python解释器进程，
-从零开始导入目标模块并执行指定的函数。
-这种方式让子进程使用独立的地址空间、线程池和GPU上下文。
-
-启动方式通过调用
-\texttt{multiprocessing.set\_start\_method}%
-\allowbreak\texttt{('spawn', force=True)}全局设定。
-\texttt{force=True}参数会覆盖可能已被第三方库设置的启动模式。
-之后所有通过\texttt{multiprocessing.Process}创建的子进程
-都以\texttt{spawn}方式启动。
-
-每个测试脚本的执行流程如下。
-主进程构造\texttt{Process}对象，把执行函数和参数序列化后传入：
-
-\begin{verbatim}
-p = multiprocessing.Process(
-    target=_execute_wrapper,
-    args=(case_uid, input_shape_str, operators_str)
-)
-p.start()
-p.join(timeout=10)
-\end{verbatim}
-
-\texttt{p.join(timeout=10)}让主进程阻塞等待子进程完成，
-最长等待10秒。如果子进程在超时时限内没有退出，
-主进程会调用\texttt{p.terminate()}发送\texttt{SIGTERM}信号终止子进程，
-再调用\texttt{p.join()}等待资源回收完成。
-当前物理执行脚本已经实现了这一超时控制，
-用来防止死循环或底层算子长时间阻塞导致的资源泄漏。
-
-子进程退出之后，主进程通过\texttt{p.exitcode}属性获取退出状态码。
-退出状态码的语义遵循POSIX标准：
-值为0表示正常退出；
-正整数表示Python层未捕获的异常导致的退出（例如值1为通用错误）；
-负整数表示子进程被操作系统信号终止，绝对值就是信号编号。
-
-当底层C++算子因为内存越界触发段错误时，
-Linux内核会向子进程发送Signal 11（\texttt{SIGSEGV}）。
-由于子进程没有注册这一信号的处理函数，
-默认行为是立即终止进程并产生核心转储（如果启用了核心转储）。
-这时主进程观察到\texttt{p.exitcode == -11}。
-
-主进程可以根据退出状态码作分类处理。
-当前批量物理执行脚本主要完成隔离执行、超时回收和探针数据注入；
-如果需要把执行状态回写到数据服务，可以采用以下分类逻辑：
-
-\begin{verbatim}
-if p.exitcode == 0:
-    status = "SUCCESS"
-elif p.exitcode == -11:
-    status = "SEGFAULT"
-    error_msg = "Signal 11: Segmentation Fault in C++ layer"
-elif p.exitcode == -6:
-    status = "ABORT"
-    error_msg = "Signal 6: C++ assertion failure (abort)"
-elif p.is_alive():
-    p.terminate()
-    p.join()
-    status = "TIMEOUT"
-else:
-    status = "CRASH"
-    error_msg = f"Exit code: {p.exitcode}"
-\end{verbatim}
-
-Signal 11（段错误）和Signal 6（\texttt{SIGABRT}，断言失败）
-是PyTorch底层算子在非法参数组合下可能触发的两类信号。
-系统可以根据\texttt{p.exitcode}记录执行状态，
-相关结果用于后续的统计、故障辅助定位、候选边界条件分析和RAG辅助诊断。
-
-这种执行隔离方式的主要作用是：
-不论子进程以哪种方式终止——正常退出、异常退出或被信号杀死——
-主进程通常不会跟着子进程一起退出。
-FastAPI的ASGI事件循环仍然可以继续响应其他HTTP请求，
-从而减少单个测试脚本的C++层崩溃对服务进程的影响。
-
-OpenMP线程死锁的处理同样依赖\texttt{spawn}启动方式。
-PyTorch在首次执行张量运算时会初始化OpenMP线程池，
-线程池内部持有互斥锁来保护共享的工作队列。
-在\texttt{fork}模式下，子进程继承父进程的锁副本，
-如果分叉的时刻恰好有线程持有这个锁，
-子进程就会永久等待一个不会被释放的锁，从而形成死锁。
-\texttt{spawn}模式通过启动全新解释器避免继承这一锁状态：
-子进程的OpenMP线程池从零初始化，不继承任何锁状态。
-这是本系统选择\texttt{spawn}而不是\texttt{fork}的主要原因。
+\FloatBarrier

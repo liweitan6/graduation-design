@@ -32,8 +32,8 @@
     <el-card class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>用例复杂度 vs. 边界覆盖率</span>
-          <el-tag type="info">气泡大小 = CEI 指数</el-tag>
+          <span>复杂度分层效能趋势</span>
+          <el-tag type="info">柱=平均覆盖 / 线=平均 CEI / 点=样本数</el-tag>
         </div>
       </template>
       <div ref="scatterRef" class="chart-box"></div>
@@ -57,7 +57,7 @@
             <el-table-column prop="complexity" label="复杂度" width="100" />
             <el-table-column prop="status" label="状态" width="90">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'Success' ? 'success' : (row.status === 'Crash' ? 'danger' : 'warning')" size="small">
+                <el-tag :type="getStatusType(row.status)" size="small">
                   {{ row.status }}
                 </el-tag>
               </template>
@@ -81,7 +81,7 @@
             <el-table-column prop="complexity" label="复杂度" width="100" />
             <el-table-column prop="status" label="状态" width="90">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'Success' ? 'success' : (row.status === 'Crash' ? 'danger' : 'warning')" size="small">
+                <el-tag :type="getStatusType(row.status)" size="small">
                   {{ row.status }}
                 </el-tag>
               </template>
@@ -193,11 +193,36 @@ const sampleWeights: Record<string, number> = {
 }
 
 const getStatusColor = (status: string) => {
-  switch(status) {
-    case 'Success': return '#10b981'
-    case 'Crash': return '#f43f5e'
-    case 'Timeout': return '#f59e0b'
+  switch(String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return '#10b981'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return '#f43f5e'
+    case 'TIMEOUT':
+      return '#f59e0b'
     default: return '#94a3b8'
+  }
+}
+
+const getStatusType = (status: string) => {
+  switch(String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return 'success'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return 'danger'
+    case 'TIMEOUT':
+      return 'warning'
+    default: return 'info'
   }
 }
 
@@ -217,52 +242,171 @@ const fetchData = async () => {
 const renderChart = (cases: any[]) => {
   if (!scatterChart) return
 
+  const grouped = new Map<number, any>()
+  cases.forEach(c => {
+    const complexity = Number(c.complexity) || 0
+    const current = grouped.get(complexity) || {
+      complexity,
+      count: 0,
+      totalCoverage: 0,
+      totalCei: 0,
+      maxCei: 0,
+      minCei: Number.POSITIVE_INFINITY,
+      success: 0,
+      crash: 0,
+      timeout: 0,
+      other: 0
+    }
+    const coverage = Number(c.edge_coverage) || 0
+    const cei = Number(c.cei) || 0
+    const status = String(c.status).toUpperCase()
+    current.count += 1
+    current.totalCoverage += coverage
+    current.totalCei += cei
+    current.maxCei = Math.max(current.maxCei, cei)
+    current.minCei = Math.min(current.minCei, cei)
+    if (['SUCCESS', 'PASS', 'PASSED'].includes(status)) {
+      current.success += 1
+    } else if (['CRASH', 'FAILED', 'FAIL', 'ERROR'].includes(status)) {
+      current.crash += 1
+    } else if (status === 'TIMEOUT') {
+      current.timeout += 1
+    } else {
+      current.other += 1
+    }
+    grouped.set(complexity, current)
+  })
+
+  const buckets = Array.from(grouped.values())
+    .sort((a, b) => a.complexity - b.complexity)
+    .map(b => ({
+      ...b,
+      avgCoverage: Number((b.totalCoverage / b.count).toFixed(1)),
+      avgCei: Number((b.totalCei / b.count).toFixed(2)),
+      minCei: b.minCei === Number.POSITIVE_INFINITY ? 0 : b.minCei
+    }))
+  const labels = buckets.map(b => String(b.complexity))
+  const maxCount = Math.max(...buckets.map(b => b.count), 1)
+
   const option = {
     backgroundColor: 'transparent',
+    legend: {
+      top: 8,
+      textStyle: { color: '#cbd5e1' },
+      itemGap: 18
+    },
     tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(99, 102, 241, 0.08)' } },
       formatter: (params: any) => {
-        const d = params.data
-        return `<strong>${d.case_uid}</strong><br/>
-                状态: ${d.status}<br/>
-                复杂度: ${d.complexity}<br/>
-                覆盖率: ${d.edge_coverage}<br/>
-                CEI 指数: ${d.cei}`
+        const first = Array.isArray(params) ? params[0] : params
+        const d = first?.data?.bucket || first?.data
+        if (!d) return ''
+        return `<strong>复杂度 ${d.complexity}</strong><br/>
+                样本数: ${d.count}<br/>
+                平均边覆盖数: ${d.avgCoverage}<br/>
+                平均 CEI: ${d.avgCei}<br/>
+                CEI 区间: ${d.minCei} - ${d.maxCei}<br/>
+                <span style="color:${getStatusColor('SUCCESS')}">Success: ${d.success}</span> /
+                <span style="color:${getStatusColor('CRASH')}">Crash: ${d.crash}</span> /
+                <span style="color:${getStatusColor('TIMEOUT')}">Timeout: ${d.timeout}</span>`
       }
     },
-    grid: { top: 40, right: 40, bottom: 60, left: 60 },
+    grid: { top: 72, right: 72, bottom: 96, left: 72 },
     xAxis: {
       name: '复杂度 (算子加权总和)',
-      nameLocation: 'middle', nameGap: 35,
+      nameLocation: 'middle', nameGap: 48,
       nameTextStyle: { color: '#94a3b8' },
-      type: 'value',
+      type: 'category',
+      data: labels,
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
       axisLabel: { color: '#94a3b8' }
     },
-    yAxis: {
-      name: '边界覆盖率',
-      nameLocation: 'middle', nameGap: 45,
-      nameTextStyle: { color: '#94a3b8' },
-      type: 'value',
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
-      axisLabel: { color: '#94a3b8' }
-    },
-    series: [{
-      type: 'scatter',
-      data: cases.map(c => ({
-        value: [c.complexity, c.edge_coverage],
-        symbolSize: Math.max(8, Math.min(40, c.cei / 20)),
-        ...c
-      })),
-      itemStyle: {
-        color: (params: any) => getStatusColor(params.data.status),
-        opacity: 0.85,
-        shadowBlur: 8,
-        shadowColor: 'rgba(0,0,0,0.4)'
+    yAxis: [
+      {
+        name: '平均边覆盖数',
+        nameLocation: 'middle',
+        nameGap: 50,
+        nameTextStyle: { color: '#94a3b8' },
+        type: 'value',
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+        axisLabel: { color: '#94a3b8' }
       },
-      emphasis: {
-        itemStyle: { borderWidth: 2, borderColor: '#fff' }
+      {
+        name: '平均 CEI',
+        nameLocation: 'middle',
+        nameGap: 48,
+        nameTextStyle: { color: '#10b981' },
+        type: 'value',
+        splitLine: { show: false },
+        axisLabel: { color: '#10b981' }
       }
-    }]
+    ],
+    dataZoom: [
+      { type: 'inside', throttle: 50 },
+      {
+        type: 'slider',
+        height: 14,
+        bottom: 8,
+        borderColor: 'rgba(148, 163, 184, 0.18)',
+        textStyle: { color: '#94a3b8' },
+        fillerColor: 'rgba(99, 102, 241, 0.18)',
+        handleStyle: { color: '#818cf8' }
+      }
+    ],
+    series: [
+      {
+        name: '平均边覆盖数',
+        type: 'bar',
+        barMaxWidth: 34,
+        data: buckets.map(b => ({ value: b.avgCoverage, bucket: b })),
+        itemStyle: {
+          borderRadius: [8, 8, 0, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#8b5cf6' },
+            { offset: 0.55, color: '#6366f1' },
+            { offset: 1, color: 'rgba(99, 102, 241, 0.28)' }
+          ])
+        },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 16,
+            shadowColor: 'rgba(129, 140, 248, 0.45)'
+          }
+        }
+      },
+      {
+        name: '平均 CEI',
+        type: 'line',
+        yAxisIndex: 1,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        data: buckets.map(b => ({ value: b.avgCei, bucket: b })),
+        lineStyle: { width: 3, color: '#10b981' },
+        itemStyle: { color: '#10b981', borderColor: '#d1fae5', borderWidth: 2 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(16, 185, 129, 0.22)' },
+            { offset: 1, color: 'rgba(16, 185, 129, 0)' }
+          ])
+        }
+      },
+      {
+        name: '样本数',
+        type: 'scatter',
+        yAxisIndex: 1,
+        data: buckets.map(b => ({ value: [String(b.complexity), b.avgCei], bucket: b })),
+        symbolSize: (_value: any, params: any) => Math.max(10, Math.min(30, params.data.bucket.count / maxCount * 30)),
+        itemStyle: {
+          color: 'rgba(245, 158, 11, 0.82)',
+          borderColor: '#fde68a',
+          borderWidth: 2,
+          shadowBlur: 10,
+          shadowColor: 'rgba(245, 158, 11, 0.35)'
+        }
+      }
+    ]
   }
   scatterChart.setOption(option)
 }

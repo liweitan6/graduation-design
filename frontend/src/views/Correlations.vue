@@ -151,8 +151,8 @@
     <el-dialog v-model="boundaryDialogVisible" title="🔬 故障临界线差分对比分析" width="850px" destroy-on-close custom-class="glass-dialog">
       <div v-loading="boundaryLoading === currentBoundaryUid">
         <div v-if="boundaryData">
-          <el-row :gutter="20">
-            <el-col :span="12">
+          <el-row :gutter="20" class="diff-row">
+            <el-col :span="12" class="diff-col">
               <el-card class="diff-card success-card" shadow="never">
                 <template #header>
                   <div class="diff-header">
@@ -162,7 +162,7 @@
                 <pre class="diff-code">{{ JSON.stringify(boundaryData.diff.successful_values, null, 2) }}</pre>
               </el-card>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="12" class="diff-col">
               <el-card class="diff-card danger-card" shadow="never">
                 <template #header>
                   <div class="diff-header">
@@ -173,6 +173,33 @@
               </el-card>
             </el-col>
           </el-row>
+
+          <div v-if="boundaryData.batch_context" class="batch-context">
+            <div class="batch-summary">
+              <span>批量归纳上下文：</span>
+              <el-tag size="small" type="success">成功组 {{ boundaryData.batch_context.successful_count }} 条</el-tag>
+              <el-tag size="small" type="danger">崩溃组 {{ boundaryData.batch_context.failed_count }} 条</el-tag>
+              <span class="batch-note">{{ boundaryData.batch_context.display_note }}</span>
+            </div>
+            <el-collapse class="batch-collapse">
+              <el-collapse-item title="查看参与 Daikon 归纳的样例 ID" name="batch-uids">
+                <div class="batch-list">
+                  <div>
+                    <div class="batch-list-title">成功组样例</div>
+                    <el-tag v-for="uid in boundaryData.batch_context.successful_uids || []" :key="uid" size="small" type="success" effect="plain" class="uid-tag">
+                      {{ uid }}
+                    </el-tag>
+                  </div>
+                  <div>
+                    <div class="batch-list-title">崩溃组样例</div>
+                    <el-tag v-for="uid in boundaryData.batch_context.failed_uids || []" :key="uid" size="small" type="danger" effect="plain" class="uid-tag">
+                      {{ uid }}
+                    </el-tag>
+                  </div>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+          </div>
           
           <div class="boundary-rule-container">
             <h4 class="rule-title">
@@ -185,6 +212,60 @@
             </div>
             <div v-else class="rule-content" style="color: #94a3b8; font-size: 12px; margin-bottom: 10px;">
               <i>未能从对照组中提取到显著的线性数学约束，将退化为依赖纯参数差值推理。</i>
+            </div>
+
+            <div v-if="boundaryData.daikon_validation && boundaryData.daikon_validation.length > 0" class="validation-section">
+              <h4 class="rule-title">
+                <el-icon><Connection /></el-icon> 算法生成正反样例结果
+                <el-tag size="small" type="info" effect="plain">待人工验证</el-tag>
+              </h4>
+              <div v-for="(report, index) in boundaryData.daikon_validation" :key="report.constraint || index" class="validation-card">
+                <div class="validation-header">
+                  <code class="validation-constraint">{{ report.constraint }}</code>
+                  <div class="validation-tags">
+                    <el-tag size="small" type="success" effect="plain">算法生成，每侧 {{ report.target_cases_per_side || 10 }} 条</el-tag>
+                    <el-tag size="small" :type="report.is_validated ? 'success' : 'info'">
+                      {{ report.is_validated ? '验证通过' : 'pending_manual' }}
+                    </el-tag>
+                  </div>
+                </div>
+                <el-row :gutter="12">
+                  <el-col :span="12">
+                    <div class="sample-box positive">
+                      <div class="sample-title">满足约束样例 {{ report.positive_cases?.length || 0 }}/{{ report.target_cases_per_side || 10 }}</div>
+                      <div v-for="(sample, idx) in report.positive_cases || []" :key="`p-${index}-${idx}`" class="sample-card">
+                        <div class="sample-card-header">
+                          <el-tag size="small" type="success">{{ sampleCaseId(sample, 'positive', idx) }}</el-tag>
+                          <span class="sample-preview">{{ samplePreview(sample) }}</span>
+                        </div>
+                        <div class="mutation-preview">{{ mutationPreview(sample) }}</div>
+                        <details class="sample-details">
+                          <summary>查看完整样例 JSON</summary>
+                          <pre class="sample-json">{{ formatSampleJson(sample) }}</pre>
+                        </details>
+                      </div>
+                      <div v-if="!report.positive_cases?.length" class="empty-samples">未生成正样例</div>
+                    </div>
+                  </el-col>
+                  <el-col :span="12">
+                    <div class="sample-box negative">
+                      <div class="sample-title">违反约束样例 {{ report.negative_cases?.length || 0 }}/{{ report.target_cases_per_side || 10 }}</div>
+                      <div v-for="(sample, idx) in report.negative_cases || []" :key="`n-${index}-${idx}`" class="sample-card">
+                        <div class="sample-card-header">
+                          <el-tag size="small" type="warning">{{ sampleCaseId(sample, 'negative', idx) }}</el-tag>
+                          <span class="sample-preview">{{ samplePreview(sample) }}</span>
+                        </div>
+                        <div class="mutation-preview">{{ mutationPreview(sample) }}</div>
+                        <details class="sample-details">
+                          <summary>查看完整样例 JSON</summary>
+                          <pre class="sample-json">{{ formatSampleJson(sample) }}</pre>
+                        </details>
+                      </div>
+                      <div v-if="!report.negative_cases?.length" class="empty-samples">未生成反样例</div>
+                    </div>
+                  </el-col>
+                </el-row>
+              </div>
             </div>
 
             <h4 class="rule-title" style="margin-top: 15px;">
@@ -245,8 +326,45 @@ const truncate = (str: string | undefined, len: number) => {
   return str.length > len ? str.substring(0, len) + '...' : str
 }
 
+const samplePreview = (sample: any) => {
+  const values = sample?.sample_values || {}
+  const struct = sample?.model_structure || sample?.generated_case?.model_structure || {}
+  const getValue = (key: string) => values[key] ?? struct[key]
+  const parts = [
+    ['H', getValue('input_height')],
+    ['W', getValue('input_width')],
+    ['K', getValue('kernel_size')],
+    ['P', getValue('padding')]
+  ].filter(([, value]) => value !== undefined && value !== null)
+  return parts.length ? parts.map(([label, value]) => `${label}=${value}`).join(' / ') : '完整生成样例'
+}
+
+const mutationPreview = (sample: any) => {
+  const mutations = sample?.mutations || []
+  if (!mutations.length) return '基于成功样例直接保留，满足当前约束'
+  return mutations.map((item: any) => `${item.key}: ${item.from} -> ${item.to}`).join('；')
+}
+
+const sampleCaseId = (sample: any, prefix: string, index: string | number) => {
+  return sample?.case_id || `${prefix}_${Number(index) + 1}`
+}
+
+const formatSampleJson = (sample: any) => {
+  return JSON.stringify({
+    case_id: sample?.case_id,
+    expected_execution: sample?.expected_execution,
+    expected_constraint_satisfied: sample?.expected_constraint_satisfied,
+    mutations: sample?.mutations || [],
+    model_structure: sample?.model_structure || sample?.generated_case?.model_structure,
+    sample_values: sample?.sample_values,
+    validation_status: sample?.validation_status,
+    generation_method: sample?.generation_method
+  }, null, 2)
+}
+
 const getErrorTagType = (cat: string) => {
   switch (cat) {
+    case 'no_error': return 'success'
     case 'cuda_oom': return 'danger'
     case 'shape_mismatch': return 'warning'
     case 'segfault': return 'danger'
@@ -325,7 +443,10 @@ onMounted(async () => {
   --el-table-text-color: #f8fafc;
 }
 
-.diff-card { background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; margin-bottom: 20px;}
+.diff-row { align-items: stretch; }
+.diff-col { display: flex; }
+.diff-card { background: rgba(30, 41, 59, 0.5); border: 1px solid #334155; margin-bottom: 20px; width: 100%; display: flex; flex-direction: column; }
+:deep(.diff-card .el-card__body) { flex: 1; display: flex; align-items: stretch; }
 .success-card { border-top: 3px solid #10b981; }
 .danger-card { border-top: 3px solid #f43f5e; }
 .diff-header { font-size: 13px; color: #cbd5e1; display: flex; align-items: center; gap: 8px;}
@@ -333,9 +454,33 @@ onMounted(async () => {
 .green-dot { background-color: #10b981; }
 .red-dot { background-color: #f43f5e; }
 .diff-code { font-family: 'Fira Code', monospace; font-size: 13px; color: #f8fafc; white-space: pre-wrap; word-break: break-all; margin: 0; }
+.batch-context { background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+.batch-summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #cbd5e1; font-size: 12px; }
+.batch-note { color: #64748b; }
+.batch-collapse { margin-top: 8px; }
+.batch-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.batch-list-title { color: #94a3b8; font-size: 12px; margin-bottom: 6px; }
+.uid-tag { margin: 2px 4px 2px 0; }
 .boundary-rule-container { background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px; }
 .rule-title { margin: 0 0 10px 0; color: #f59e0b; font-size: 14px; }
 .rule-content { color: #1e293b; font-size: 14px; line-height: 1.6; }
 .daikon-tag { margin-bottom: 8px; display: block; width: fit-content; border-color: #f43f5e; color: #f43f5e; }
 .daikon-code { font-family: 'Fira Code', monospace; font-weight: bold; font-size: 14px; background: rgba(244, 63, 94, 0.1); padding: 2px 6px; border-radius: 4px; }
+.validation-section { margin-top: 16px; }
+.validation-card { background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.validation-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.validation-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.validation-constraint { color: #f8fafc; font-family: 'Fira Code', monospace; font-size: 12px; word-break: break-all; }
+.sample-box { min-height: 72px; max-height: 360px; overflow: auto; border-radius: 6px; padding: 8px; }
+.sample-box.positive { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); }
+.sample-box.negative { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); }
+.sample-title { color: #cbd5e1; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.sample-card { background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 6px; padding: 6px; margin-bottom: 6px; }
+.sample-card-header { display: flex; align-items: center; gap: 6px; color: #e2e8f0; font-family: 'Fira Code', monospace; font-size: 12px; }
+.sample-preview { word-break: break-all; }
+.mutation-preview { color: #94a3b8; font-family: 'Fira Code', monospace; font-size: 11px; margin-top: 4px; word-break: break-all; }
+.sample-details { color: #cbd5e1; font-size: 12px; margin-top: 5px; }
+.sample-details summary { cursor: pointer; color: #93c5fd; }
+.sample-json { max-height: 180px; overflow: auto; background: rgba(2, 6, 23, 0.45); color: #e2e8f0; border-radius: 4px; padding: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+.empty-samples { color: #64748b; font-size: 12px; }
 </style>

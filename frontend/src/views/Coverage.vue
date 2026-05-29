@@ -69,9 +69,6 @@
           <template #header>
             <div class="card-header">
               <span>未覆盖算子对 (TOP 20)</span>
-              <el-button type="warning" size="small" @click="handleAutoGenerate" :loading="generating">
-                🤖 一键 AI 补盲
-              </el-button>
             </div>
           </template>
           <el-table :data="uncoveredPairs.slice(0, 20)" max-height="400" size="small">
@@ -86,6 +83,20 @@
             <el-table-column label="终止算子" min-width="120">
               <template #default="{ row }">
                 <code class="op-name">{{ row.to }}</code>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="90">
+              <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  size="small"
+                  link
+                  :loading="generatingPairKey === getPairKey(row)"
+                  :disabled="generatingPairKey !== '' && generatingPairKey !== getPairKey(row)"
+                  @click.stop="handleGeneratePair(row)"
+                >
+                  生成
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -122,7 +133,7 @@ let heatmapChart: echarts.ECharts | null = null
 const summary = ref<any>({})
 const operatorCoverage = ref<any[]>([])
 const uncoveredPairs = ref<any[]>([])
-const generating = ref(false)
+const generatingPairKey = ref('')
 const showGenDialog = ref(false)
 const genResult = ref<any>(null)
 
@@ -197,10 +208,12 @@ onUnmounted(() => {
   window.removeEventListener('resize', () => heatmapChart?.resize())
 })
 
-const handleAutoGenerate = async () => {
-  generating.value = true
+const getPairKey = (pair: any) => `${pair.from}->${pair.to}`
+
+const handleGeneratePair = async (pair: any) => {
+  generatingPairKey.value = getPairKey(pair)
   try {
-    const res = await autoGenerateFromGaps(5)
+    const res = await autoGenerateFromGaps(1, { from: pair.from, to: pair.to })
     genResult.value = res.data
     showGenDialog.value = true
     ElMessage.success(res.data.message || '补盲建议已生成')
@@ -208,7 +221,7 @@ const handleAutoGenerate = async () => {
     ElMessage.error('AI 补盲生成失败，请检查 Python 服务是否运行')
     console.error(err)
   } finally {
-    generating.value = false
+    generatingPairKey.value = ''
   }
 }
 </script>

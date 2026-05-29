@@ -6,7 +6,7 @@
 提取出引发崩溃的关键变量 Delta。
 """
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 import copy
 import math
 import re
@@ -87,8 +87,7 @@ class DaikonInvariantEngine:
     并寻找失败用例违反了哪条约束，从而精确计算出故障边界公式。
 
     拓展功能：在得到约束式后，围绕约束式自动生成正/反测试样例，
-    并执行一个轻量级的 PyTorch 算子验证器，检查满足约束式的样例是否能成功运行、
-    不满足约束式的样例是否会触发异常，从而反向验证故障边界公式的可信度。
+    供用户在目标执行环境中进一步验证故障边界公式的可信度。
     """
     
     def extract_flat_numeric_params(self, params: Dict[str, Any], prefix="") -> Dict[str, float]:
@@ -228,52 +227,44 @@ class DaikonInvariantEngine:
         allowed = {"abs": abs, "math": math}
         return bool(eval(expr, {"__builtins__": {}}, {**allowed, **replacements}))
 
-    def _execute_validation_case(self, params: Dict[str, Any]) -> Tuple[bool, str]:
-        """用真实 PyTorch 算子快速执行样例，返回是否成功和报错摘要。"""
-        try:
-            import torch
-            import torch.nn as nn
+    def _sync_layer_strings(self, params: Dict[str, Any]) -> None:
+        struct = params.get("model_structure", params)
+        layers = struct.get("layers")
+        if not isinstance(layers, list):
+            return
+        for idx, layer in enumerate(layers):
+            if not isinstance(layer, str):
+                continue
+            updated = layer
+            for key in ("in_channels", "out_channels", "kernel_size", "padding", "stride", "groups"):
+                if key in struct:
+                    updated = re.sub(rf"{key}=[^,\)]+", f"{key}={struct[key]}", updated)
+            layers[idx] = updated
 
-            struct = params.get("model_structure", params)
-            operators = struct.get("operators") or params.get("operators") or ["Conv2d"]
-            if isinstance(operators, str):
-                operators = [op.strip() for op in operators.split(",") if op.strip()]
+    def _format_numeric_value(self, value: float) -> Any:
+        return int(value) if float(value).is_integer() else float(value)
 
-            batch = int(struct.get("batch", struct.get("batch_size", 1)))
-            channels = int(struct.get("in_channels", struct.get("channels", 3)))
-            height = int(struct.get("input_height", struct.get("height", struct.get("input_size", 8))))
-            width = int(struct.get("input_width", struct.get("width", struct.get("input_size", height))))
-            kernel = int(struct.get("kernel_size", 3))
-            padding = int(struct.get("padding", 0))
-            stride = int(struct.get("stride", 1))
-            out_channels = int(struct.get("out_channels", max(1, channels)))
-            groups = int(struct.get("groups", 1))
+    def _build_validation_case(self, candidate: Dict[str, Any], flat: Dict[str, float], constraint: str, should_satisfy: bool, mutations: List[Dict[str, Any]], index: int) -> Dict[str, Any]:
+        model_structure = copy.deepcopy(candidate.get("model_structure", candidate))
+        sample_values = {k: self._format_numeric_value(v) for k, v in flat.items()}
+        return {
+            "case_id": f"{'positive' if should_satisfy else 'negative'}_{index + 1:02d}",
+            "expected_constraint_satisfied": should_satisfy,
+            "expected_execution": "success" if should_satisfy else "runtime_error",
+            "mutated_key": mutations[0]["key"] if mutations else None,
+            "mutated_value": mutations[0]["to"] if mutations else None,
+            "mutations": mutations,
+            "sample_values": sample_values,
+            "model_structure": model_structure,
+            "generated_case": copy.deepcopy(candidate),
+            "constraint_satisfied": should_satisfy,
+            "validation_status": "pending_manual",
+            "generation_method": "deterministic_constraint_mutation",
+            "message": "已由约束变异算法生成样例，待用户在目标执行环境中运行验证"
+        }
 
-            x = torch.randn(max(1, batch), max(1, channels), max(1, height), max(1, width))
-            for op in operators:
-                if op == "Conv2d":
-                    x = nn.Conv2d(channels, out_channels, kernel, stride=stride, padding=padding, groups=groups)(x)
-                    channels = out_channels
-                elif op == "MaxPool2d":
-                    x = nn.MaxPool2d(kernel_size=max(1, kernel), stride=max(1, stride))(x)
-                elif op == "AvgPool2d":
-                    x = nn.AvgPool2d(kernel_size=max(1, kernel), stride=max(1, stride))(x)
-                elif op == "BatchNorm2d" and x.dim() == 4:
-                    x = nn.BatchNorm2d(x.shape[1])(x)
-                elif op == "Flatten":
-                    x = nn.Flatten()(x)
-                elif op == "Linear":
-                    if x.dim() > 2:
-                        x = nn.Flatten()(x)
-                    x = nn.Linear(x.shape[1], max(1, out_channels))(x)
-                elif op == "ReLU":
-                    x = nn.ReLU()(x)
-            return True, "success"
-        except Exception as exc:
-            return False, str(exc)[:240]
-
-    def validate_invariants(self, invariants: List[str], successful_params_list: List[Dict[str, Any]], samples_per_side: int = 3) -> List[Dict[str, Any]]:
-        """为每条约束生成满足/不满足样例并运行验证。"""
+    def validate_invariants(self, invariants: List[str], successful_params_list: List[Dict[str, Any]], samples_per_side: int = 10) -> List[Dict[str, Any]]:
+        """为每条约束生成满足/不满足样例，等待用户在目标环境中验证。"""
         if not invariants or not successful_params_list:
             return []
         base = copy.deepcopy(successful_params_list[0])
@@ -282,42 +273,76 @@ class DaikonInvariantEngine:
 
         for inv in invariants[:5]:
             related_keys = [k for k in base_flat if k in inv]
-            cases = []
+            target_keys = related_keys[:3] or list(base_flat.keys())[:1]
+            cases_by_side = {True: [], False: []}
+            seen_by_side = {True: set(), False: set()}
             for should_satisfy in (True, False):
-                generated = 0
-                for key in related_keys[:3] or list(base_flat.keys())[:1]:
-                    original = base_flat[key]
-                    for delta in ([0, 1, 2, 4, 8] if should_satisfy else [-1, -2, -4, -8, 0]):
-                        candidate = copy.deepcopy(base)
-                        self._set_flat_value(candidate, key, max(0, original + delta))
+                for source in successful_params_list:
+                    source_flat = self.extract_flat_numeric_params(source.get("model_structure", source))
+                    for key in target_keys:
+                        if key not in source_flat:
+                            continue
+                        original = source_flat[key]
+                        min_value = 0 if "padding" in key else 1
+                        deltas = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 8, -8, 13, -13, 21, -21]
+                        for delta in deltas:
+                            candidate = copy.deepcopy(source)
+                            new_value = max(min_value, original + delta)
+                            self._set_flat_value(candidate, key, new_value)
+                            self._sync_layer_strings(candidate)
+                            flat = self.extract_flat_numeric_params(candidate.get("model_structure", candidate))
+                            try:
+                                ok_constraint = self._evaluate_constraint(inv, flat)
+                            except Exception:
+                                continue
+                            if ok_constraint != should_satisfy:
+                                continue
+                            signature = tuple(sorted((k, self._format_numeric_value(v)) for k, v in flat.items()))
+                            if signature in seen_by_side[should_satisfy]:
+                                continue
+                            seen_by_side[should_satisfy].add(signature)
+                            mutations = [{
+                                "key": key,
+                                "from": self._format_numeric_value(original),
+                                "to": self._format_numeric_value(flat.get(key, new_value)),
+                                "delta": self._format_numeric_value(flat.get(key, new_value) - original)
+                            }]
+                            cases_by_side[should_satisfy].append(
+                                self._build_validation_case(candidate, flat, inv, should_satisfy, mutations, len(cases_by_side[should_satisfy]))
+                            )
+                            if len(cases_by_side[should_satisfy]) >= samples_per_side:
+                                break
+                        if len(cases_by_side[should_satisfy]) >= samples_per_side:
+                            break
+                    if len(cases_by_side[should_satisfy]) >= samples_per_side:
+                        break
+                if len(cases_by_side[should_satisfy]) < samples_per_side and should_satisfy:
+                    for source in successful_params_list:
+                        candidate = copy.deepcopy(source)
                         flat = self.extract_flat_numeric_params(candidate.get("model_structure", candidate))
                         try:
                             ok_constraint = self._evaluate_constraint(inv, flat)
                         except Exception:
                             continue
-                        if ok_constraint != should_satisfy:
+                        if not ok_constraint:
                             continue
-                        ok_run, message = self._execute_validation_case(candidate)
-                        cases.append({
-                            "expected_constraint_satisfied": should_satisfy,
-                            "mutated_key": key,
-                            "mutated_value": flat.get(key),
-                            "constraint_satisfied": ok_constraint,
-                            "execution_success": ok_run,
-                            "message": message
-                        })
-                        generated += 1
-                        if generated >= samples_per_side:
+                        signature = tuple(sorted((k, self._format_numeric_value(v)) for k, v in flat.items()))
+                        if signature in seen_by_side[should_satisfy]:
+                            continue
+                        seen_by_side[should_satisfy].add(signature)
+                        cases_by_side[should_satisfy].append(
+                            self._build_validation_case(candidate, flat, inv, should_satisfy, [], len(cases_by_side[should_satisfy]))
+                        )
+                        if len(cases_by_side[should_satisfy]) >= samples_per_side:
                             break
-                    if generated >= samples_per_side:
-                        break
-            positive = [c for c in cases if c["expected_constraint_satisfied"]]
-            negative = [c for c in cases if not c["expected_constraint_satisfied"]]
             reports.append({
                 "constraint": inv,
-                "positive_cases": positive,
-                "negative_cases": negative,
-                "is_validated": bool(positive and negative) and all(c["execution_success"] for c in positive) and all(not c["execution_success"] for c in negative)
+                "positive_cases": cases_by_side[True],
+                "negative_cases": cases_by_side[False],
+                "target_cases_per_side": samples_per_side,
+                "generation_method": "deterministic_constraint_mutation",
+                "is_validated": False,
+                "validation_status": "pending_manual"
             })
         return reports
 
@@ -326,5 +351,5 @@ _daikon = DaikonInvariantEngine()
 def infer_daikon_invariants(failed_params_list: List[Dict[str, Any]], successful_params_list: List[Dict[str, Any]]) -> List[str]:
     return _daikon.infer_violated_invariants(failed_params_list, successful_params_list)
 
-def validate_daikon_invariants(invariants: List[str], successful_params_list: List[Dict[str, Any]], samples_per_side: int = 3) -> List[Dict[str, Any]]:
+def validate_daikon_invariants(invariants: List[str], successful_params_list: List[Dict[str, Any]], samples_per_side: int = 10) -> List[Dict[str, Any]]:
     return _daikon.validate_invariants(invariants, successful_params_list, samples_per_side)

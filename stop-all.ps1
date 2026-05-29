@@ -1,8 +1,8 @@
-# DL Fuzzing System - Stop All Services (PowerShell)
+# FuzzHub - Stop All Services (PowerShell)
 # Usage: Right-click -> Run with PowerShell
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  DL Fuzzing System - Stopping All" -ForegroundColor Cyan
+Write-Host "  FuzzHub - Stopping All" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path

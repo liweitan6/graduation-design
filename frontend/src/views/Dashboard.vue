@@ -105,10 +105,18 @@ const handleRowClick = (row: any) => {
 }
 
 const getStatusType = (status: string) => {
-  switch(status) {
-    case 'Success': return 'success'
-    case 'Crash': return 'danger'
-    case 'Timeout': return 'warning'
+  switch(String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return 'success'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return 'danger'
+    case 'TIMEOUT':
+      return 'warning'
     default: return 'info'
   }
 }

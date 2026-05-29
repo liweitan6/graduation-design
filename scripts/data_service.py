@@ -1085,6 +1085,51 @@ def _get_all_cases_with_structure():
         conn.close()
 
 
+@app.get("/api/analysis/diversity")
+async def get_diversity_analysis():
+    try:
+        conn = pymysql.connect(**MYSQL_CONFIG)
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        try:
+            cursor.execute("""
+                SELECT case_uid, status, edge_coverage, execution_time,
+                       error_message, parameters
+                FROM test_case_metadata
+                ORDER BY id ASC
+            """)
+            rows = cursor.fetchall()
+        finally:
+            conn.close()
+
+        points = []
+        for row in rows:
+            params = json.loads(row["parameters"]) if row["parameters"] else {}
+            if "vis_x" not in params or "vis_y" not in params:
+                continue
+            points.append({
+                "case_uid": row["case_uid"],
+                "status": row["status"],
+                "vis_x": float(params["vis_x"]),
+                "vis_y": float(params["vis_y"]),
+                "edge_coverage": row["edge_coverage"],
+                "execution_time": row["execution_time"],
+                "error_message": row["error_message"],
+                "parameters": params
+            })
+
+        return {
+            "points": points,
+            "summary": {
+                "total_cases": len(rows),
+                "visualized_cases": len(points),
+                "missing_coordinate_cases": len(rows) - len(points)
+            }
+        }
+    except Exception as e:
+        logger.error(f"多样性分布数据获取失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/analysis/coverage-gaps")
 async def get_coverage_gaps():
     """
@@ -1123,14 +1168,17 @@ async def get_coverage_gaps():
                 heatmap_data.append([i, j, count])
                 if count > 0:
                     covered_pairs.append({"from": op_a, "to": op_b, "count": count})
-                elif op_a != op_b and op_a in all_seen_operators and op_b in all_seen_operators:
+        for op_a in heatmap_ops:
+            for op_b in heatmap_ops:
+                if op_a != op_b and operator_pair_counts.get((op_a, op_b), 0) == 0:
                     uncovered_pairs.append({"from": op_a, "to": op_b})
+        uncovered_pairs.sort(key=lambda p: OPERATOR_WEIGHTS.get(p["from"], 1) + OPERATOR_WEIGHTS.get(p["to"], 1), reverse=True)
         
         # 3. 单算子覆盖情况
         operator_coverage = []
         for op in sorted(KNOWN_OPERATORS):
             case_count = sum(1 for c in cases if op in c["operators"])
-            crash_count = sum(1 for c in cases if op in c["operators"] and c["status"] == "Crash")
+            crash_count = sum(1 for c in cases if op in c["operators"] and str(c["status"]).upper() in {"CRASH", "FAILED", "FAIL", "ERROR"})
             operator_coverage.append({
                 "operator": op,
                 "total_cases": case_count,
@@ -1552,19 +1600,22 @@ async def get_correlations():
 
 # ==================== 覆盖盲区自动补盲（闭环） ====================
 
-COVERAGE_PROMPT = """你是一个深度学习框架模糊测试专家。根据以下未被覆盖的算子对组合，生成针对性的 PyTorch 测试用例代码片段。
+COVERAGE_PROMPT = """你是一个深度学习框架模糊测试专家。根据指定的未覆盖算子对组合，生成针对性的 PyTorch 测试用例代码片段。
 
 要求：
-1. 每个测试用例应包含指定的算子对组合，通过 nn.Sequential 或自定义 nn.Module 串联
+1. 只生成 1 个测试用例，不要给出多个备选方案
 2. 给出合理的输入张量维度
 3. 代码应能直接在 PyTorch 中运行
 4. 重点关注那些可能导致维度冲突、显存溢出或设备不一致的边界情况
 5. 使用中文注释说明每个用例的测试目标
-6. 每个用例输出完整可运行的 Python 代码块"""
+6. 只输出 1 个完整可运行的 Python 代码块，尽量控制在 120 行以内"""
 
 
 @app.post("/api/auto-generate-from-gaps")
-async def auto_generate_from_gaps(max_pairs: int = Body(default=5, embed=True)):
+async def auto_generate_from_gaps(
+    max_pairs: int = Body(default=1, embed=True),
+    target_pair: Optional[Dict[str, str]] = Body(default=None, embed=True)
+):
     """
     覆盖盲区自动补盲闭环：
     1. 从 coverage-gaps 接口提取 uncovered_pairs
@@ -1589,29 +1640,35 @@ async def auto_generate_from_gaps(max_pairs: int = Body(default=5, embed=True)):
                     pair = (parts[i], parts[i + 1])
                     operator_pair_counts[pair] = operator_pair_counts.get(pair, 0) + 1
 
-        # 提取未覆盖算子对
+        pair_candidate_ops = sorted(all_seen_operators | set(KNOWN_OPERATORS[:20]))
         uncovered = []
-        for op_a in all_seen_operators:
-            for op_b in all_seen_operators:
+        for op_a in pair_candidate_ops:
+            for op_b in pair_candidate_ops:
                 if op_a != op_b and (op_a, op_b) not in operator_pair_counts:
                     uncovered.append({"from": op_a, "to": op_b})
 
-        if not uncovered:
+        if target_pair:
+            target_from = target_pair.get("from")
+            target_to = target_pair.get("to")
+            if not target_from or not target_to:
+                raise HTTPException(status_code=400, detail="target_pair must contain from and to")
+            selected_pairs = [{"from": target_from, "to": target_to}]
+        elif not uncovered:
             return {
                 "status": "complete",
                 "message": "当前所有已知算子对组合均已覆盖，无需补盲",
                 "generated_cases": [],
                 "uncovered_pairs_used": []
             }
+        else:
+            # 2. 选取优先级最高的未覆盖对（优先选择含高复杂度算子的组合）
+            def pair_priority(pair):
+                w1 = OPERATOR_WEIGHTS.get(pair["from"], 1)
+                w2 = OPERATOR_WEIGHTS.get(pair["to"], 1)
+                return w1 + w2
 
-        # 2. 选取优先级最高的未覆盖对（优先选择含高复杂度算子的组合）
-        def pair_priority(pair):
-            w1 = OPERATOR_WEIGHTS.get(pair["from"], 1)
-            w2 = OPERATOR_WEIGHTS.get(pair["to"], 1)
-            return w1 + w2
-
-        uncovered.sort(key=pair_priority, reverse=True)
-        selected_pairs = uncovered[:max_pairs]
+            uncovered.sort(key=pair_priority, reverse=True)
+            selected_pairs = uncovered[:max_pairs]
 
         # 3. 构建 Prompt
         pairs_desc = "\n".join(
@@ -1626,7 +1683,7 @@ async def auto_generate_from_gaps(max_pairs: int = Body(default=5, embed=True)):
 已有测试用例总数: {len(cases)}
 已覆盖的算子对组合数: {len(operator_pair_counts)}
 
-请为以上每一组未覆盖的算子对，各生成 1 个针对性的 PyTorch 测试用例代码。"""
+请只为以上算子对生成 1 个对应的 PyTorch 测试用例代码，不要扩展生成其它算子对，不要输出多个测试用例。"""
 
         # 4. 调用 LLM
         answer = call_deepseek(prompt, COVERAGE_PROMPT)
@@ -1888,20 +1945,25 @@ async def analyze_fault_boundary(request: FaultBoundaryRequest):
         
         # 6. 使用 Daikon 算法推断被打破的数学不变量 (严格分离成功空间与失败空间)
         # 当有 demo_group 时，仅用同组数据做 Daikon（避免异构参数集污染 common_keys）
+        daikon_success_cases = successful_cases
+        daikon_failed_cases = failed_cases
         daikon_success_params = successful_params_list
         daikon_failed_params = failed_params_list
         if demo_group:
-            daikon_success_params = [json.loads(c.get('parameters', '{}')) for c in successful_cases if demo_group in (c.get('parameters') or '')]
-            daikon_failed_params = [json.loads(c.get('parameters', '{}')) for c in failed_cases if demo_group in (c.get('parameters') or '')]
+            daikon_success_cases = [c for c in successful_cases if demo_group in (c.get('parameters') or '')]
+            daikon_failed_cases = [c for c in failed_cases if demo_group in (c.get('parameters') or '')]
+            daikon_success_params = [json.loads(c.get('parameters', '{}')) for c in daikon_success_cases]
+            daikon_failed_params = [json.loads(c.get('parameters', '{}')) for c in daikon_failed_cases]
             if not daikon_failed_params:
+                daikon_failed_cases = [failed_case]
                 daikon_failed_params = [failed_params]
         daikon_violations = infer_daikon_invariants(daikon_failed_params, daikon_success_params)
-        daikon_validation = validate_daikon_invariants(daikon_violations, daikon_success_params, samples_per_side=3)
+        daikon_validation = validate_daikon_invariants(daikon_violations, daikon_success_params, samples_per_side=10)
         
         # 7. 利用 DeepSeek 提取边界规则
         daikon_context = ""
         if daikon_violations:
-            daikon_context = f"\n【算法推断的数学越界规律 (Daikon Invariants)】\n系统已通过底层算法测算发现，崩溃用例恰好打破了以下原本在所有成功用例中都绝对成立的数学约束：\n{json.dumps(daikon_violations, ensure_ascii=False)}\n\n【约束式执行验证结果】\n系统已根据约束式自动生成满足约束的正样例与不满足约束的反样例，并使用 PyTorch 算子执行验证：\n{json.dumps(daikon_validation, ensure_ascii=False)}\n请你结合验证结果判断该公式是否可信；若正样例成功、反样例报错，则说明边界约束被执行层面验证。\n"
+            daikon_context = f"\n【算法推断的数学越界规律 (Daikon Invariants)】\n系统已通过底层算法测算发现，崩溃用例恰好打破了以下原本在所有成功用例中都绝对成立的数学约束：\n{json.dumps(daikon_violations, ensure_ascii=False)}\n\n【约束式正反样例生成结果】\n系统已根据约束式生成满足约束的正样例与不满足约束的反样例，但尚未在目标 PyTorch 执行环境中自动运行：\n{json.dumps(daikon_validation, ensure_ascii=False)}\n请你将这些样例视为待人工复现的验证材料，不要把 pending_manual 状态解释为执行层面已经验证通过。\n"
 
         prompt = f"""
 你是一个深度学习框架（如 PyTorch）的底层排障专家。我们需要找出导致算子崩溃的“故障安全边界 (Fault Boundary)”。
@@ -1931,6 +1993,13 @@ async def analyze_fault_boundary(request: FaultBoundaryRequest):
                 "uid": successful_case['case_uid']
             },
             "diff": diff_result,
+            "batch_context": {
+                "successful_count": len(daikon_success_cases),
+                "failed_count": len(daikon_failed_cases),
+                "successful_uids": [c["case_uid"] for c in daikon_success_cases[:10]],
+                "failed_uids": [c["case_uid"] for c in daikon_failed_cases[:10]],
+                "display_note": "顶部仅展示最近邻成功用例和当前失败用例的差分，Daikon 约束归纳使用本批量上下文。"
+            },
             "daikon_violations": daikon_violations,
             "daikon_validation": daikon_validation,
             "boundary_rule": boundary_rule

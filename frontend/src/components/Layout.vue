@@ -3,7 +3,7 @@
     <el-aside width="240px" class="aside">
       <div class="logo">
         <el-icon :size="24" color="#6366f1"><Monitor /></el-icon>
-        <span class="logo-text">DL Fuzzing</span>
+        <span class="logo-text">FuzzHub</span>
       </div>
       
       <el-menu
@@ -41,7 +41,7 @@
         </el-menu-item>
         <el-menu-item index="/assistant">
           <el-icon><MagicStick /></el-icon>
-          <span>AI 智能助手</span>
+          <span>AI 智能分析助手</span>
         </el-menu-item>
         <el-menu-item index="/correlations">
           <el-icon><Connection /></el-icon>
@@ -91,15 +91,15 @@ const activeRoute = computed(() => route.path)
 
 const pageTitle = computed(() => {
   switch(route.path) {
-    case '/': return '系统运行总览'
+    case '/': return 'FuzzHub运行总览'
     case '/diversity': return '测试用例多样性分布'
-    case '/assistant': return 'AI 智能测试助手'
+    case '/assistant': return 'AI 智能分析助手'
     case '/cases': return '测试用例管理'
     case '/import': return '导入测试记录'
     case '/coverage': return '算子覆盖缺口分析'
     case '/efficiency': return '测试效能评估'
     case '/correlations': return '故障根因关联分析'
-    default: return '深度学习模糊测试管理系统'
+    default: return 'FuzzHub'
   }
 })
 </script>

@@ -6,6 +6,7 @@
           <div class="header-left">
             <span>隐空间维度可视化 (PCA)</span>
             <el-tag type="info" class="ml-10">384 维 → 2 维投影</el-tag>
+            <el-tag type="success" class="ml-10">已展示 {{ diversitySummary.visualized_cases || 0 }} / {{ diversitySummary.total_cases || 0 }} 个样例</el-tag>
           </div>
           <div class="header-right">
             <el-select v-model="filterStatus" placeholder="筛选状态" clearable size="small" style="width: 140px">
@@ -91,28 +92,46 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
 import { Refresh, Close } from '@element-plus/icons-vue'
-// import api from '../api'
+import { getDiversityAnalysis } from '../api'
 
 const scatterChartRef = ref<HTMLElement | null>(null)
 let scatterChart: echarts.ECharts | null = null
 const loading = ref(false)
 const filterStatus = ref('')
 const selectedPoint = ref<any>(null)
+const allPoints = ref<any[]>([])
+const diversitySummary = ref<any>({})
 
 const getStatusType = (status: string) => {
-  switch(status) {
-    case 'Success': return 'success'
-    case 'Crash': return 'danger'
-    case 'Timeout': return 'warning'
+  switch(String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return 'success'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return 'danger'
+    case 'TIMEOUT':
+      return 'warning'
     default: return 'info'
   }
 }
 
 const getStatusColor = (status: string) => {
-  switch(status) {
-    case 'Success': return '#10b981'
-    case 'Crash': return '#f43f5e'
-    case 'Timeout': return '#f59e0b'
+  switch(String(status).toUpperCase()) {
+    case 'SUCCESS':
+    case 'PASS':
+    case 'PASSED':
+      return '#10b981'
+    case 'CRASH':
+    case 'FAILED':
+    case 'FAIL':
+    case 'ERROR':
+      return '#f43f5e'
+    case 'TIMEOUT':
+      return '#f59e0b'
     default: return '#94a3b8'
   }
 }
@@ -120,28 +139,10 @@ const getStatusColor = (status: string) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // In a real app, we'd have an endpoint to get all cases with their vis_x/vis_y
-    // For now, since we already have the MySQL table, 
-    // we'll assume the Java backend would provide this.
-    // We'll mock it based on the data structure in storage.
-    
-    // Mocking 50 data points for visualization
-    const mockData = []
-    const statuses = ['Success', 'Crash', 'Timeout']
-    for (let i = 0; i < 50; i++) {
-      const status = statuses[Math.floor(Math.random() * statuses.length)]
-      mockData.push({
-        case_uid: `case_fuzz_${Math.random().toString(16).slice(2, 6)}`,
-        status: status,
-        vis_x: (Math.random() * 2 - 1).toFixed(4),
-        vis_y: (Math.random() * 2 - 1).toFixed(4),
-        edge_coverage: Math.floor(Math.random() * 5000),
-        error_message: status !== 'Success' ? 'RuntimeError: Some error context here...' : null,
-        parameters: { model: 'resnet50', mutation: 'random' }
-      })
-    }
-    
-    updateChart(mockData)
+    const res = await getDiversityAnalysis()
+    allPoints.value = res.data?.points || []
+    diversitySummary.value = res.data?.summary || {}
+    updateChart(allPoints.value)
   } finally {
     loading.value = false
   }
@@ -213,7 +214,7 @@ const initChart = () => {
   }
 }
 
-watch(filterStatus, () => fetchData())
+watch(filterStatus, () => updateChart(allPoints.value))
 
 onMounted(() => {
   initChart()
