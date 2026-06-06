@@ -1,40 +1,41 @@
 \relax 
 \providecommand\hyper@newdestlabel[2]{}
-\@writefile{toc}{\contentsline {chapter}{\numberline {4\hspace  {.3em}}系统详细设计与主要算法}{19}{chapter.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {4\hspace  {.3em}}系统详细设计与主要算法}{17}{chapter.4}\protected@file@percent }
 \@writefile{lof}{\addvspace {10.0pt}}
 \@writefile{lot}{\addvspace {10.0pt}}
-\@writefile{toc}{\contentsline {section}{\numberline {4.1}数据接入与特征表示设计}{19}{section.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.1}基于分层正则匹配的日志解析模块}{19}{subsection.4.1.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces LogParser模块支持的八种标准化错误类别}}{19}{table.caption.4}\protected@file@percent }
-\newlabel{tab:error_categories}{{4.1}{19}{LogParser模块支持的八种标准化错误类别}{table.caption.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.2}双路向量化特征表示方法}{20}{subsection.4.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.2}异构存储模块设计}{21}{section.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.3}故障辅助分析模块设计}{21}{section.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.1}基于DFS拓扑回溯的故障辅助定位模块}{22}{subsection.4.3.1}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces 基于DFS回溯的候选算子定位算法}}{22}{algorithm.1}\protected@file@percent }
-\newlabel{alg:dfs_fault_locator}{{1}{22}{基于DFS回溯的候选算子定位算法}{algorithm.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.1}数据接入与特征表示设计}{17}{section.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.1}基于分层正则匹配的日志解析模块}{17}{subsection.4.1.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces LogParser模块支持的八种标准化错误类别}}{17}{table.caption.4}\protected@file@percent }
+\newlabel{tab:error_categories}{{4.1}{17}{LogParser模块支持的八种标准化错误类别}{table.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1.2}双路向量化特征表示方法}{18}{subsection.4.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.2}异构存储模块设计}{19}{section.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.3}故障辅助分析模块设计}{19}{section.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.1}基于DFS拓扑回溯的故障辅助定位模块}{20}{subsection.4.3.1}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces 基于DFS回溯的候选算子定位算法}}{20}{algorithm.1}\protected@file@percent }
+\newlabel{alg:dfs_fault_locator}{{1}{20}{基于DFS回溯的候选算子定位算法}{algorithm.1}{}}
 \citation{ref_daikon}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.2}语义相似召回与RAG辅助诊断}{23}{subsection.4.3.2}\protected@file@percent }
-\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces 语义相似召回与RAG辅助诊断算法}}{23}{algorithm.2}\protected@file@percent }
-\newlabel{alg:rag_retrieval}{{2}{23}{语义相似召回与RAG辅助诊断算法}{algorithm.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.3}故障关联分析}{23}{subsection.4.3.3}\protected@file@percent }
-\newlabel{eq:common_keys}{{4.1}{24}{故障关联分析}{equation.4.1}{}}
-\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces 双重验证判据——候选边界条件提取算法}}{24}{algorithm.3}\protected@file@percent }
-\newlabel{alg:dual_verify}{{3}{24}{双重验证判据——候选边界条件提取算法}{algorithm.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4.4}数据分析与优化模块设计}{25}{section.4.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.1}基于PCA的测试集多样性分析}{25}{subsection.4.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.2}CEI覆盖效能指数量化模型}{25}{subsection.4.4.2}\protected@file@percent }
-\newlabel{eq:cei}{{4.2}{25}{CEI覆盖效能指数量化模型}{equation.4.2}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces 部分算子的CEI权重基准}}{26}{table.caption.5}\protected@file@percent }
-\newlabel{tab:operator_weight}{{4.2}{26}{部分算子的CEI权重基准}{table.caption.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.3}算子覆盖缺口分析}{26}{subsection.4.4.3}\protected@file@percent }
-\newlabel{eq:operator_pool}{{4.3}{27}{算子覆盖缺口分析}{equation.4.3}{}}
-\newlabel{eq:blind_spots}{{4.4}{27}{算子覆盖缺口分析}{equation.4.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.4}覆盖缺口驱动的候选补盲测试脚本生成}{27}{subsection.4.4.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4.3}{\ignorespaces RAG补盲提示词模板结构}}{28}{table.caption.6}\protected@file@percent }
-\newlabel{tab:prompt_template}{{4.3}{28}{RAG补盲提示词模板结构}{table.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.2}语义相似召回与RAG辅助诊断}{21}{subsection.4.3.2}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces 语义相似召回与RAG辅助诊断算法}}{21}{algorithm.2}\protected@file@percent }
+\newlabel{alg:rag_retrieval}{{2}{21}{语义相似召回与RAG辅助诊断算法}{algorithm.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.3}故障关联分析}{21}{subsection.4.3.3}\protected@file@percent }
+\newlabel{eq:common_keys}{{4.1}{22}{故障关联分析}{equation.4.1}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces 双重验证判据——候选边界条件提取算法}}{23}{algorithm.3}\protected@file@percent }
+\newlabel{alg:dual_verify}{{3}{23}{双重验证判据——候选边界条件提取算法}{algorithm.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.4}数据分析与优化模块设计}{23}{section.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.1}基于PCA的测试集多样性分析}{24}{subsection.4.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.2}CEI覆盖效能指数量化模型}{24}{subsection.4.4.2}\protected@file@percent }
+\newlabel{eq:cei}{{4.2}{24}{CEI覆盖效能指数量化模型}{equation.4.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces 部分算子的CEI权重基准}}{25}{table.caption.5}\protected@file@percent }
+\newlabel{tab:operator_weight}{{4.2}{25}{部分算子的CEI权重基准}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.3}算子覆盖缺口分析}{25}{subsection.4.4.3}\protected@file@percent }
+\newlabel{eq:operator_pool}{{4.3}{25}{算子覆盖缺口分析}{equation.4.3}{}}
+\newlabel{eq:blind_spots}{{4.4}{25}{算子覆盖缺口分析}{equation.4.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.4}覆盖缺口驱动的候选补盲测试脚本生成}{26}{subsection.4.4.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.3}{\ignorespaces RAG补盲提示词模板结构}}{26}{table.caption.6}\protected@file@percent }
+\newlabel{tab:prompt_template}{{4.3}{26}{RAG补盲提示词模板结构}{table.caption.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4.5}本章小结}{27}{section.4.5}\protected@file@percent }
 \@setckpt{data/chapter4-basic}{
-\setcounter{page}{29}
+\setcounter{page}{28}
 \setcounter{equation}{4}
 \setcounter{enumi}{0}
 \setcounter{enumii}{0}
@@ -44,15 +45,15 @@
 \setcounter{mpfootnote}{0}
 \setcounter{part}{0}
 \setcounter{chapter}{4}
-\setcounter{section}{4}
-\setcounter{subsection}{4}
+\setcounter{section}{5}
+\setcounter{subsection}{0}
 \setcounter{subsubsection}{0}
 \setcounter{paragraph}{0}
 \setcounter{subparagraph}{0}
 \setcounter{figure}{0}
 \setcounter{table}{3}
 \setcounter{parentequation}{0}
-\setcounter{endNonectr}{19}
+\setcounter{endNonectr}{20}
 \setcounter{currNonectr}{0}
 \setcounter{section@level}{0}
 \setcounter{Item}{0}
@@ -111,7 +112,7 @@
 \setcounter{assign}{4}
 \setcounter{float@type}{16}
 \setcounter{algorithm}{3}
-\setcounter{ALC@unique}{49}
+\setcounter{ALC@unique}{71}
 \setcounter{ALC@line}{22}
 \setcounter{ALC@rem}{0}
 \setcounter{ALC@depth}{0}

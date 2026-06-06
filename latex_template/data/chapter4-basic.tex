@@ -151,31 +151,74 @@ Milvus维护\texttt{fuzzing\_logs}和\texttt{fuzzing\_structure}两个集合，
 
 具体定位过程如算法\ref{alg:dfs_fault_locator}所示。
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
+
 \caption{基于DFS回溯的候选算子定位算法}
+
 \label{alg:dfs_fault_locator}
+
+\small\linespread{1.0}\selectfont
+
 \begin{algorithmic}[1]
-\REQUIRE 结构化错误信息$E$，算子有向图$G=(V,\mathcal{E})$
-\ENSURE 候选算子节点列表$\mathcal{L}$
-\STATE 根据边集合$\mathcal{E}$构建逆向邻接表$\mathbf{A}^{-1}$
-\STATE 根据$E$中的错误类别选择错误相关算子集合$\mathcal{M}$
-\STATE 根据$E$确定候选触发节点集合$\mathcal{T}$；若无法确定，则令$\mathcal{T}\leftarrow V$
+
+\REQUIRE 结构化错误信息 $E$，算子有向图 $G=(V,\mathcal{E})$，最大回溯深度 $d_{\text{max}}$
+
+\ENSURE 候选算子节点列表 $\mathcal{L}$
+
+\STATE $\mathbf{A}^{-1} \leftarrow \text{BuildReverseAdjacency}(G)$
+
+\STATE $\mathcal{M} \leftarrow \text{GetSuspiciousOperators}(E.\text{category})$
+
+\STATE $\mathcal{T} \leftarrow \text{GetTriggerNodes}(E, V)$
+
 \STATE $\mathcal{L} \leftarrow \emptyset$
+
 \FOR{each trigger node $t \in \mathcal{T}$}
-    \STATE 从$t$开始沿$\mathbf{A}^{-1}$执行DFS回溯
-    \FOR{each visited node $o_i$}
-        \IF{$o_i \in \mathcal{M}$ or $o_i$ matches a risky topology pattern}
-            \STATE 计算候选置信度$score(o_i)$并生成推理理由
-            \STATE $\mathcal{L} \leftarrow \mathcal{L} \cup \{(o_i, \mathrm{id}(o_i), score(o_i), reason)\}$
+
+    \STATE $Stack \leftarrow \text{[(}t, 0\text{)]}$
+
+    \STATE $Visited \leftarrow \emptyset$
+
+    \WHILE{$Stack \neq \emptyset$}
+
+        \STATE Pop $(u, d)$ from $Stack$
+
+        \IF{$u \notin Visited \land d \le d_{\text{max}}$}
+
+            \STATE $Visited \leftarrow Visited \cup \{u\}$
+
+            \IF{$\text{Type}(u) \in \mathcal{M} \lor \text{IsRiskyTopology}(u, G)$}
+
+                \STATE $score \leftarrow \text{CalcConfidence}(u, d)$
+
+                \STATE $reason \leftarrow \text{GenerateReason}(u, E)$
+
+                \STATE $\mathcal{L} \leftarrow \mathcal{L} \cup \{(u, \text{ID}(u), score, reason)\}$
+
+            \ENDIF
+
+            \IF{$\text{Type}(u) \notin \mathcal{M} \land \mathbf{A}^{-1}[u] \neq \emptyset$}
+
+                \FOR{each predecessor $v \in \mathbf{A}^{-1}[u]$}
+
+                    \STATE Push $(v, d+1)$ to $Stack$
+
+                \ENDFOR
+
+            \ENDIF
+
         \ENDIF
-        \IF{$o_i \in \mathcal{M}$ or depth exceeds threshold or $\mathbf{A}^{-1}(o_i)=\emptyset$}
-            \STATE 停止当前回溯分支
-        \ENDIF
-    \ENDFOR
+
+    \ENDWHILE
+
 \ENDFOR
-\STATE 对$\mathcal{L}$按置信度降序排序
+
+\STATE 对 $\mathcal{L}$ 按置信度 $score$ 降序排序
+
 \RETURN $\mathcal{L}$
+
 \end{algorithmic}
+
 \end{algorithm}
 
 其中，错误相关算子集合$\mathcal{M}$根据错误类型确定。
@@ -191,19 +234,34 @@ Milvus维护\texttt{fuzzing\_logs}和\texttt{fuzzing\_structure}两个集合，
 再把召回结果作为RAG上下文交给LLM生成辅助诊断报告。
 其处理过程如算法\ref{alg:rag_retrieval}所示。
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
 \caption{语义相似召回与RAG辅助诊断算法}
 \label{alg:rag_retrieval}
+\small\linespread{1.0}\selectfont
 \begin{algorithmic}[1]
-\REQUIRE 用户查询$q$，最终返回数量$K$
-\ENSURE 召回用例集合$\mathcal{C}$，辅助诊断报告$R$
+\REQUIRE 用户查询 $q$，目标返回用例数 $K$，查询包含的结构关键词和日志关键词数量 $w_{\text{struct}}, w_{\text{log}}$
+\ENSURE 召回用例集合 $\mathcal{C}$，辅助诊断报告 $R$
 \STATE $v_q \leftarrow \text{SentenceBERT}(q)$
-\STATE 在\texttt{fuzzing\_structure}中检索与$v_q$最相似的前$3K$个结构候选
-\STATE 在\texttt{fuzzing\_logs}中检索与$v_q$最相似的前$3K$个日志候选
-\STATE 根据$q$中的结构关键词和日志关键词比例计算两路融合权重
-\STATE 合并两路候选结果，并按融合得分截取前$K$个用例，记为$\mathcal{C}$
-\STATE 根据$\mathcal{C}$中的主键从MySQL反查完整元数据
-\STATE 将元数据和用户查询$q$组装为RAG上下文提示词$P$
+\STATE $\mathcal{H}_{\text{struct}} \leftarrow \text{MilvusSearch}(v_q, \text{fuzzing\_structure}, 3K)$
+\STATE $\mathcal{H}_{\text{log}} \leftarrow \text{MilvusSearch}(v_q, \text{fuzzing\_logs}, 3K)$
+\IF{$w_{\text{struct}} + w_{\text{log}} > 0$}
+    \STATE $\alpha \leftarrow \frac{w_{\text{struct}}}{w_{\text{struct}} + w_{\text{log}}}$
+    \STATE $\beta \leftarrow 1 - \alpha$
+\ELSE
+    \STATE $\alpha \leftarrow 0.5$
+    \STATE $\beta \leftarrow 0.5$
+\ENDIF
+\STATE $\mathcal{U} \leftarrow \text{keys}(\mathcal{H}_{\text{struct}}) \cup \text{keys}(\mathcal{H}_{\text{log}})$
+\FOR{each $c \in \mathcal{U}$}
+    \STATE $S(c) \leftarrow \alpha \cdot \text{CosineSim}(v_q, v_{c,\text{struct}}) + \beta \cdot \text{CosineSim}(v_q, v_{c,\text{log}})$
+\ENDFOR
+\STATE $\mathcal{C} \leftarrow \text{GetTopK}(\mathcal{U}, S, K)$
+\STATE $\mathcal{M} \leftarrow \emptyset$
+\FOR{each $c \in \mathcal{C}$}
+    \STATE $M_c \leftarrow \text{MySQLQuery}(c.\text{uid})$
+    \STATE $\mathcal{M} \leftarrow \mathcal{M} \cup \{M_c\}$
+\ENDFOR
+\STATE $P \leftarrow \text{AssemblePrompt}(\mathcal{M}, q)$
 \STATE $R \leftarrow \text{LLM}(P)$
 \RETURN $\mathcal{C}, R$
 \end{algorithmic}
@@ -247,9 +305,10 @@ DL测试用例的参数空间通常包含模型结构字典、层配置子字典
 
 上述三层扫描的双重验证判据以算法\ref{alg:dual_verify}的伪代码形式给出。
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
 \caption{双重验证判据——候选边界条件提取算法}
 \label{alg:dual_verify}
+\small\linespread{1.0}\selectfont
 \begin{algorithmic}[1]
 \REQUIRE 健康组展平参数集合 $\mathcal{S}_{\text{flat}} = \{s_1, s_2, \ldots, s_{|\mathcal{S}|}\}$
 \REQUIRE 崩溃组展平参数集合 $\mathcal{F}_{\text{flat}} = \{f_1, f_2, \ldots, f_{|\mathcal{F}|}\}$
@@ -465,3 +524,7 @@ LLM生成的候选补盲测试脚本经过必要的检查和确认后，
 可以作为后续测试输入的候选材料，
 再由开发者确认是否进入数据接入流程，
 形成“发现盲区→生成候选补盲测试脚本→执行验证→后续分析”的处理流程。
+
+\section{本章小结}
+
+本章对系统的各个核心模块进行了详细的算法与架构设计。首先，设计了基于分层正则匹配的日志解析与双路向量化特征表示方法，实现了测试产物的高效接入与特征表征；其次，设计了异构存储模块，通过MySQL管理结构化元数据，Milvus存储高维特征向量，并设计了跨库关联机制；接着，在故障辅助分析模块中，设计了基于DFS拓扑回溯的故障辅助定位、对照组召回与参数展平、候选约束扫描以及基于RAG的辅助诊断报告生成算法；最后，在数据分析与优化模块中，设计了基于PCA的多样性分析、基于CEI指标的测试用例效能评估（包括基于阈值的级联清退与最终一致性维护流程）以及覆盖缺口分析和候选补盲测试脚本生成方法。本章的算法设计构成了系统核心业务能力的底层逻辑支撑。
