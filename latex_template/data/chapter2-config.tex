@@ -63,27 +63,51 @@ Fuzzing用自动化的方式不断生成测试输入，
 因此本文系统不能只靠关键词匹配，
 还需要一种能够反映句子语义接近程度的编码方法。
 
-Reimers等人提出的Sentence-BERT\cite{ref_sbert}
+Reimers等人提出的Sentence-BERT（SBERT）\cite{ref_sbert}
 在预训练语言模型的基础上引入了孪生网络（Siamese Network）结构，
 让不同句子得到的嵌入向量可以直接做距离比较。
-两段文本各自经过共享参数的编码器之后，
-得到固定维度的稠密浮点向量，
-再用余弦相似度来衡量它们在语义上的接近程度。
-这种表示方式比较适合本文系统中的两类数据：
-一类是崩溃日志和报错堆栈文本，
-用来从历史记录里找出相似的缺陷；
-另一类是测试脚本中的计算图结构信息，
-用来比较不同用例在计算图语义上的接近程度。
+孪生网络结构由两路结构和参数完全共享的子编码器（Encoder）组成。
+对于输入句子对 $(S_A, S_B)$，首先通过 WordPiece 等分词算法将其分割为 $T$ 个离散 Token，
+然后送入底层编码器（如 Transformer 层）。
+设分词序列对应的 contextualized 隐藏状态向量为 $\mathbf{h}_1, \mathbf{h}_2, \dots, \mathbf{h}_T \in \mathbb{R}^d$。
+为了从 Token 级别的表征向量中提取出句子的全局语义，SBERT 默认采用平均池化（Mean Pooling）技术，
+将句子所有 Token 的隐藏状态求均值：
+\begin{equation}
+\label{eq:mean_pooling}
+\mathbf{u} = \frac{\displaystyle\sum_{i=1}^{T} \mathbf{h}_i \cdot M_i}{\displaystyle\sum_{i=1}^{T} M_i}
+\end{equation}
+其中 $M_i \in \{0, 1\}$ 表示 Attention Mask。当 $t_i$ 为实际有效 Token 时 $M_i = 1$；当其为 Padding 填充占位符时 $M_i = 0$。通过池化操作分别得到两个定长稠密向量 $\mathbf{u}, \mathbf{v} \in \mathbb{R}^d$。
 
-本课题采用all-MiniLM-L6-v2\cite{ref_minilm}作为编码器。
-这个模型由6层Transformer结构蒸馏而来，
-输出384维向量，
-在语义区分能力和计算开销之间相对均衡。
+为了让得到的向量可以直接用空间夹角余弦（Cosine Similarity）衡量语义相似度，SBERT 引入了针对句对数据的联合训练机制，主要包括分类与回归两类训练目标。
+
+分类目标函数（Classification Objective）适用于带类标签的句对数据集。将池化向量 $\mathbf{u}$、$\mathbf{v}$ 以及它们之间的元素级绝对差值 $|\mathbf{u} - \mathbf{v}|$ 进行拼接，再通过一个可训练的权重矩阵 $\mathbf{W} \in \mathbb{R}^{3d \times K}$（其中 $K$ 为类别数）进行线性变换后输入 Softmax 分类器：
+\begin{equation}
+\label{eq:sbert_classification}
+\mathbf{o} = \text{softmax}\left(\mathbf{W} [\mathbf{u}; \mathbf{v}; |\mathbf{u} - \mathbf{v}|]\right)
+\end{equation}
+
+回归目标函数（Regression Objective）适用于带有连续相似度评分 $y \in [0, 1]$ 的句对数据集。通过最小化池化向量余弦相似度与真实评分之间的均方误差（MSE）来优化模型：
+\begin{equation}
+\label{eq:sbert_regression}
+\mathcal{L}_{\text{MSE}} = \frac{1}{2} \left( \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} - y \right)^2
+\end{equation}
+
+这种表示方式非常契合本文系统。崩溃日志和报错堆栈文本通过 SBERT 编码后，相似缺陷在向量空间中距离相近，利于历史故障的语义去重和精准匹配。
+
+本课题采用 all-MiniLM-L6-v2\cite{ref_minilm} 作为 Sentence-BERT 的底层编码器。
+该模型由 6 层 Transformer 结构通过自注意力关系蒸馏（Self-Attention Relation Distillation）构建而成。
+在 Transformer 结构中，其最核心的技术为缩放点积自注意力机制（Scaled Dot-Product Attention）：
+\begin{equation}
+\label{eq:self_attention}
+\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left( \frac{\mathbf{Q} \mathbf{K}^T}{\sqrt{d_k}} \right) \mathbf{V}
+\end{equation}
+其中 $\mathbf{Q}, \mathbf{K}, \mathbf{V}$ 分别为自注意力机制中的查询（Query）、键（Key）和值（Value）矩阵。
+all-MiniLM-L6-v2 模型输出 $\mathbb{R}^{384}$ 维的稠密向量。
+相较于参数规模庞大的 BERT-base 模型（12 层，隐藏层维度 768），MiniLM 仅包含约 2270 万参数。
+它在参数体积和计算开销缩减近 70\% 的情况下，保留了超 99\% 的语义分类精度，
+极大地降低了日志实时灌入和向量化特征编码的延迟。
 在本系统里，它放在数据接入流程的向量化环节。
-每条测试用例入库之前，
-系统先对日志文本和脚本结构信息分别编码，
-再把得到的向量标识和MySQL中的结构化元数据关联起来保存。
-这些向量后续用于相似用例的检索和测试集多样性分析。
+每条测试用例入库之前，系统先对日志文本和脚本结构信息分别编码，再把得到的向量标识和 MySQL 中的结构化元数据关联起来保存。这些向量后续用于相似用例的检索和测试集多样性分析。
 
 \subsection{高维向量近似最近邻检索}
 

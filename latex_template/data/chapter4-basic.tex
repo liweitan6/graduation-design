@@ -83,24 +83,81 @@ Python侧则使用\texttt{File "xxx.py", line 42}这样的格式。
 
 \subsection{双路向量化特征表示方法}
 
-如第二章所述，本系统采用Sentence-BERT编码模型将离散文本映射为384维稠密浮点向量。
-针对Fuzzing产物的异构特性，系统设计了两条并行的向量化路径。
 
-第一条路径为报错堆栈语义表征。
-模块把用例的\texttt{error\_message}字段直接送入Sentence-BERT编码器。
-遇到成功执行、没有错误信息的用例，则补充占位文本
-\texttt{"Success: [status] - Model executed OK"}进行编码。
-这条路径产出的向量写入Milvus中的\texttt{fuzzing\_logs}集合，
-供后续语义检索使用。
 
-第二条路径为图拓扑序列投影。
-模块将测试用例的模型结构字典序列化为标准化文本，
-格式为\texttt{"Model structure: layers=[...],}\allowbreak\texttt{ connections=...,}\allowbreak\texttt{ depth=N,}\allowbreak\texttt{ operators=[...]"}。
-该文本经Sentence-BERT编码后产出的向量存入Milvus的\texttt{fuzzing\_structure}集合，
-用于多样性分析与拓扑相似性召回。
+如第二章所述，本系统采用 Sentence-BERT 编码模型将离散文本映射为 384 维稠密浮点向量。
 
-为了避免重复加载开销，两条路径共用同一个all-MiniLM-L6-v2模型实例。
-每个测试用例经过该处理后会得到两个独立的384维向量。
+针对 Fuzzing 产物的异构特性，系统设计了两条并行的向量化路径，分别处理崩溃日志与模型图拓扑。
+
+
+
+
+
+
+
+第一条路径为报错堆栈语义表征。该路径专注于提取崩溃日志中的核心异常特征。由于原始崩溃日志通常包含大量环境相关的噪声（如瞬时的 Tensor 内存地址、宿主机文件路径以及具体的张量数值），直接进行向量编码容易导致相似故障因噪声干扰而在高维空间中分离。为此，系统在文本送入 Sentence-BERT 前进行标准预处理过滤。
+
+
+
+首先进行内存指针抑制，使用正则模式匹配 \texttt{0x[0-9a-fA-F]+}，将所有张量及指针的十六进制内存地址统一替换为固定的占位标签 \texttt{[HEX\_ADDR]}。
+
+其次进行绝对路径标准化，将宿主机本地环境的 Python 与 C++ 文件绝对路径（例如 \texttt{/home/usr/miniconda3/lib/python3.10/site-packages/}\allowbreak\texttt{torch/...}）统一重写为相对于 PyTorch 源码库根目录的相对路径，去除临时环境目录的干扰。
+
+随后进行帧格式规整，识别堆栈回溯（Traceback）中的报错帧。将诸如 \texttt{File "...", line ..., in ...} 的堆栈回溯行统一规整为 \texttt{[FILE] at line [LINE] in [FUNC]} 的标准元数据格式。
+
+最后进行数值模糊化，剥离偶发出现的具体异常 shape 数值（例如将 \texttt{RuntimeError: Sizes of tensors must match except in dimension 1. Got 32 and 64} 转换为更具泛化性的 \texttt{RuntimeError: Sizes of tensors must match except in dimension [DIM]. Got [VAL\_1] and [VAL\_2]}）。
+
+
+
+预处理完成后，规整化的文本（例如 \texttt{RuntimeError: sizes=[...] in [FILE] at line [LINE]}）被送入 SBERT 编码器。
+
+遇到执行成功且没有错误日志的健康用例时，系统会使用固定的哨兵占位文本 \texttt{Success: [status] - Model executed OK} 产生对应的特征向量。
+
+这保证了 Milvus 向量库在 schema 设计上的一致性，使得后续对照分析能够基于统一的相似度矩阵进行度量。
+
+这条路径产出的向量写入 Milvus 中的 \texttt{fuzzing\_logs} 集合，供后续故障关联及语义检索诊断使用。
+
+
+
+
+
+
+
+第二条路径为图拓扑序列投影。该路径负责将非序列化的深度学习模型计算图（有向无环图，DAG）映射到向量空间。由于 SBERT 等 Transformer 模型仅能接受一维字符序列输入，系统设计了图拓扑序列化算法将 DAG 压缩编码为高信息密度的标准化文本描述。具体步骤如下。
+
+
+
+首先进行拓扑排序（Topological Sort），系统首先对测试用例对应的计算图执行拓扑排序，得到全局唯一的算子执行线性序列。这保证了在存在前驱后继关系 $(u, v) \in \mathcal{E}$ 时，算子 $u$ 在文本序列中必然排在 $v$ 之前，锁定了计算图的数据流向。
+
+其次进行算子节点属性抽取，对于序列中的每个算子节点，系统提取其算子类别（Operator Type）与核心超参数配置，并规整为标准形式如：\allowbreak\texttt{[OpType](in=[input\_}\allowbreak\texttt{shapes],} \texttt{out=[output\_}\allowbreak\texttt{shapes],} \texttt{[key\_}\allowbreak\texttt{params])}。例如，卷积层可被表示为：\allowbreak\texttt{Conv2d(in=[1,}\allowbreak\texttt{3,}\allowbreak\texttt{224,}\allowbreak\texttt{224],} \texttt{out=[1,}\allowbreak\texttt{64,}\allowbreak\texttt{112,}\allowbreak\texttt{112],} \texttt{k=3,} \texttt{s=2,} \texttt{p=1)}。
+
+随后进行连边拓扑网络抽象，将节点间的依赖边提取为逗号分隔的邻接关系式：\texttt{connections=[Op\_0->Op\_1,}\allowbreak\texttt{ Op\_1->Op\_2]}。
+
+最后进行整体图结构打包，整合算子序列、连边拓扑网络以及图全局统计属性（如 network 深度 \texttt{depth}、分支宽度 \texttt{width} 与参数量估算），拼装为最终的标准化序列文本：
+
+\begin{verbatim}
+
+Model structure: operators=[Conv2d(...), ReLU(...), MaxPool2d(...)], 
+
+connections=[Conv2d_0->ReLU_1, ReLU_1->MaxPool2d_2], 
+
+depth=3, parameters=0.03M
+
+\end{verbatim}
+
+
+
+该文本经过 SBERT 编码器编码后产生 $\mathbb{R}^{384}$ 维的向量，并写入 Milvus 的 \texttt{fuzzing\_structure} 集合。
+
+多头自注意力机制（Multi-Head Self-Attention）能在这个过程中敏锐捕捉到算子序列间的长距离依赖关系与局部的基础块结构（如典型的 \texttt{Conv-BN-ReLU} 组合），
+
+从而将拓扑结构相似、算子类型相近的模型计算图投影到高维向量空间中邻近的区域。
+
+
+
+为了避免重复加载开销，两条路径在后台运行阶段共用同一个 \texttt{all-MiniLM-L6-v2} 模型实例。每个测试用例经过双路编码器处理后，最终在库中沉淀为两个相互独立又高度互补的 384 维向量特征。
+
+
 
 \section{异构存储模块设计}
 
